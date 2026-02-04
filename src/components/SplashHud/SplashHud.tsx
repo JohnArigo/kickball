@@ -4,7 +4,14 @@ import { buildOrg } from '../../data/buildOrg'
 import type { OrgData, OrgNode } from '../../data/types'
 import { HudSidePanel } from './HudSidePanel'
 import { HudTooltip } from './HudTooltip'
-import { RadialHud, branchIdForNode, type HoverInfo } from './RadialHud'
+import { RadialHud, type HoverInfo } from './RadialHud'
+import { DEFAULT_FUNCTION_DEPENDENCIES } from '../../data/functionDependencies'
+import { deriveFunctionEdges } from '../../data/deriveFunctionEdges'
+import { derivePressureMarks, type DepEdge, type HudNode } from '../../data/derivePressureMarks'
+import { computeFocusTargetsAndExpansion } from '../../data/deriveFocusExpansion'
+import { deriveVisibilityPolicy } from '../../data/deriveVisibilityPolicy'
+import type { OrgNode as HudOrgNode } from '../../data/hudModel'
+import { buildMockCrossLevelDeps } from '../../data/mockCrossLevelDeps'
 
 const lowestByScore = (nodes: Record<string, OrgNode>, ids: string[]) => {
   return ids.reduce((lowest, id) => {
@@ -29,12 +36,6 @@ const findLowestPath = (org: OrgData) => {
   }
 }
 
-const penaltyForStatus = (status: string) => {
-  if (status === 'red') return 12
-  if (status === 'yellow') return 6
-  return 0
-}
-
 export const SplashHud = ({ seed }: { seed: number }) => {
   const org = useMemo(() => buildOrg(seed), [seed])
   const initialPath = useMemo(() => findLowestPath(org), [org])
@@ -45,6 +46,13 @@ export const SplashHud = ({ seed }: { seed: number }) => {
   const [focusLevel, setFocusLevel] = useState<'branch' | 'division' | 'department'>('branch')
   const [hoverInfo, setHoverInfo] = useState<HoverInfo>(null)
   const [showDependencies, setShowDependencies] = useState(true)
+  const [pressureMode, setPressureMode] = useState(true)
+  const [showSecondaryPressure, setShowSecondaryPressure] = useState(true)
+  const [showCrossRingTicks, setShowCrossRingTicks] = useState(true)
+  const [showArrowsExplain, setShowArrowsExplain] = useState(true)
+  const [panelTab, setPanelTab] = useState<'overview' | 'dependencies' | 'root'>('dependencies')
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [focusStack, setFocusStack] = useState<string[]>([initialPath.branchId])
   const [onlyAlerted, setOnlyAlerted] = useState(false)
   const [explodeAll, setExplodeAll] = useState(false)
   const [expandDepartments, setExpandDepartments] = useState(false)
@@ -59,6 +67,7 @@ export const SplashHud = ({ seed }: { seed: number }) => {
     setSelectedBranchId(branchId)
     if (nextDivision) setSelectedDivisionId(nextDivision.id)
     if (nextDepartment) setSelectedDepartmentId(nextDepartment.id)
+    setFocusStack([branchId])
     setFocusLevel('branch')
   }
 
@@ -68,12 +77,14 @@ export const SplashHud = ({ seed }: { seed: number }) => {
     const nextDepartment = lowestByScore(org.nodesById, division.childrenIds)
     setSelectedDivisionId(divisionId)
     if (nextDepartment) setSelectedDepartmentId(nextDepartment.id)
+    setFocusStack([selectedBranchId, divisionId])
     setFocusLevel('division')
   }
 
   const selectDepartment = (departmentId: string) => {
     if (!org.nodesById[departmentId]) return
     setSelectedDepartmentId(departmentId)
+    setFocusStack([selectedBranchId, selectedDivisionId, departmentId])
     setFocusLevel('department')
   }
 
@@ -110,33 +121,88 @@ export const SplashHud = ({ seed }: { seed: number }) => {
 
   const activeNode = selectedDepartment ?? selectedDivision ?? selectedBranch
 
-  const upstream = showDependencies && activeNode
-    ? activeNode.dependsOn
-        .map((depId) => org.nodesById[depId])
-        .filter(Boolean)
-        .map((dep) => ({
-          name: dep.name,
-          status: dep.status,
-          penalty: penaltyForStatus(dep.status),
+  const treeNodes: HudOrgNode[] = Object.values(org.nodesById).map((node) => ({
+    id: node.id,
+    label: node.name,
+    parentId: node.parentId,
+    level: node.level,
+    majorOrgId: node.level === 'branch' ? node.id : node.parentId ? `branch-${node.id.split('-')[1]}` : node.id,
+    childrenIds: node.childrenIds,
+    sortIndex: node.parentId ? org.nodesById[node.parentId]?.childrenIds.indexOf(node.id) ?? 0 : 0,
+    status: node.status,
+    score: node.score,
+  }))
+
+  const hudNodes: HudNode[] = treeNodes.map((node) => ({
+    id: node.id,
+    label: node.label,
+    ring: node.level === 'branch' ? 0 : node.level === 'division' ? 1 : node.level === 'department' ? 2 : 3,
+    status: node.status,
+    score: node.score,
+  }))
+
+  const baseEdges: DepEdge[] = deriveFunctionEdges(DEFAULT_FUNCTION_DEPENDENCIES, selectedBranchId).map((edge) => ({
+    id: edge.id,
+    fromId: edge.fromId,
+    toId: edge.toId,
+    weight: edge.weight,
+  }))
+
+  const mockEdges = buildMockCrossLevelDeps(treeNodes)
+
+  const activeEdges = showDependencies
+    ? [...baseEdges, ...mockEdges].filter((edge) => edge.fromId === (focusStack.at(-1) ?? selectedBranchId))
+    : []
+
+  const focusNodeId = focusStack.at(-1) ?? selectedBranchId
+  const visibility = deriveVisibilityPolicy(
+    panelTab,
+    focusStack,
+    treeNodes,
+    activeEdges,
+    explodeAll && panelTab === 'dependencies',
+    3,
+  )
+  const focusResult = computeFocusTargetsAndExpansion(focusNodeId, treeNodes, activeEdges, visibility.visibleLevel)
+  const pressureMarks = pressureMode
+    ? derivePressureMarks(focusNodeId, hudNodes, activeEdges)
+    : []
+
+  const sortedEdges = activeEdges.slice().sort((a, b) => b.weight - a.weight)
+  const topEdges = sortedEdges.slice(0, 6)
+  const remainingEdges = sortedEdges.slice(6)
+  const targetIds = new Set(focusResult.targets.map((target) => target.id))
+  const strongestTarget = [...focusResult.targets].sort((a, b) => b.weight - a.weight)[0]
+  const dependsOnLine = strongestTarget
+    ? `Depends on ${org.nodesById[strongestTarget.id]?.name ?? strongestTarget.id}`
+    : 'No direct dependencies'
+  const strongestLine = strongestTarget
+    ? `Strongest: ${org.nodesById[strongestTarget.id]?.name ?? strongestTarget.id} (${strongestTarget.weight}/10)`
+    : ''
+  const landingLine = strongestTarget?.landingPath && strongestTarget.landingPath.length > 1
+    ? `Landing: ${strongestTarget.landingPath.map((id) => org.nodesById[id]?.name ?? id).join(' > ')}`
+    : ''
+
+  const upstream = showDependencies
+    ? activeEdges
+        .map((edge) => ({
+          name: org.nodesById[edge.toId]?.name ?? edge.toId,
+          status: org.nodesById[edge.toId]?.status ?? 'green',
+          weight: edge.weight,
         }))
-        .sort((a, b) => b.penalty - a.penalty)
+        .sort((a, b) => b.weight - a.weight)
         .slice(0, 3)
     : []
 
-  const strongestDependency = showDependencies && activeNode
-    ? activeNode.dependsOn
-        .map((depId) => org.nodesById[depId])
-        .filter(Boolean)
-        .map((dep) => ({ dep, penalty: penaltyForStatus(dep.status) }))
-        .sort((a, b) => b.penalty - a.penalty)[0]
-    : null
+  const topDependencyNames = activeEdges
+    .slice()
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 2)
+    .map((edge) => org.nodesById[edge.toId]?.name ?? edge.toId)
 
-  const dependencyChord = strongestDependency && strongestDependency.penalty > 0
-    ? {
-        fromBranchId: branchIdForNode(strongestDependency.dep, org.nodesById) ?? selectedBranchId,
-        toBranchId: branchIdForNode(activeNode, org.nodesById) ?? selectedBranchId,
-      }
-    : null
+  const dependencyHeadline = topDependencyNames.length > 0
+    ? `${selectedBranch?.name ?? 'This function'} depends on ${topDependencyNames.join(', ')}.`
+    : `${selectedBranch?.name ?? 'This function'} has no direct upstream dependencies.`
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -196,18 +262,29 @@ export const SplashHud = ({ seed }: { seed: number }) => {
   }
 
   return (
-    <div className="splash-hud">
+    <div className={`splash-hud ${pressureMode && panelTab === 'dependencies' ? 'is-pressure' : ''}`}>
       <div className="splash-hud__main">
         <div className="splash-hud__radial-shell">
           <RadialHud
             org={org}
+            nodes={hudNodes}
+            treeNodes={treeNodes}
             selectedBranchId={selectedBranchId}
             selectedDivisionId={selectedDivisionId}
             selectedDepartmentId={selectedDepartmentId}
             visibleDepartmentIds={explodeAll ? undefined : visibleDepartments}
             highlightedPath={highlightedPath}
-            showDependencies={showDependencies}
-            dependencyChord={dependencyChord}
+            pressureMarks={pressureMarks}
+            dependencyEdges={showArrowsExplain ? topEdges : []}
+            pressureMode={pressureMode}
+            showSecondaryPressure={showSecondaryPressure}
+            showCrossRingTicks={showCrossRingTicks}
+            focusNodeId={focusNodeId}
+            targetIds={targetIds}
+            expandedNodeIds={focusResult.expandedNodeIds}
+            visibleIds={visibility.visibleIds}
+            expandedMajorOrgIds={visibility.expandedMajorOrgIds}
+            activeTab={panelTab}
             onlyAlerted={onlyAlerted}
             explodeAll={explodeAll}
             showSalesToggle={isExpandableBranch && !explodeAll}
@@ -241,10 +318,30 @@ export const SplashHud = ({ seed }: { seed: number }) => {
             showDependencies={showDependencies}
             onlyAlerted={onlyAlerted}
             explodeAll={explodeAll}
+            pressureMode={pressureMode}
+            showSecondaryPressure={showSecondaryPressure}
+            showCrossRingTicks={showCrossRingTicks}
+            showArrowsExplain={showArrowsExplain}
             onToggleDependencies={() => setShowDependencies((prev) => !prev)}
             onToggleAlerted={() => setOnlyAlerted((prev) => !prev)}
             onToggleExplodeAll={() => setExplodeAll((prev) => !prev)}
+            onTogglePressureMode={() => setPressureMode((prev) => !prev)}
+            onToggleSecondaryPressure={() => setShowSecondaryPressure((prev) => !prev)}
+            onToggleCrossRingTicks={() => setShowCrossRingTicks((prev) => !prev)}
+            onToggleArrowsExplain={() => setShowArrowsExplain((prev) => !prev)}
+            panelTab={panelTab}
+            onChangePanelTab={setPanelTab}
+            showAdvanced={showAdvanced}
+            onToggleAdvanced={() => setShowAdvanced((prev) => !prev)}
+            dependsOnLine={dependsOnLine}
+            strongestLine={strongestLine}
             onRootCause={handleRootCauseJump}
+            dependencyHeadline={dependencyHeadline}
+            remainingDependencies={remainingEdges.map((edge) => ({
+              name: org.nodesById[edge.toId]?.name ?? edge.toId,
+              weight: edge.weight,
+            }))}
+            landingLine={landingLine}
             upstream={upstream}
           />
         </div>

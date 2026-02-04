@@ -1,6 +1,8 @@
 import './RadialHud.css'
 import { describeArc, midAngle, polarToCartesian } from './hudMath'
 import type { OrgData, OrgNode, Status } from '../../data/types'
+import type { HudNode, PressureMark } from '../../data/derivePressureMarks'
+import type { DirectedDependencyEdge } from '../../data/deriveFunctionEdges'
 
 export type HoverInfo = {
   nodeId: string
@@ -10,13 +12,24 @@ export type HoverInfo = {
 
 type RadialHudProps = {
   org: OrgData
+  nodes: HudNode[]
+  treeNodes: import('../../data/hudModel').OrgNode[]
+  focusNodeId: string
+  targetIds: Set<string>
+  expandedNodeIds: Set<string>
+  visibleIds: Set<string>
+  expandedMajorOrgIds: Set<string>
+  activeTab: 'overview' | 'dependencies' | 'root'
   selectedBranchId: string
   selectedDivisionId: string
   selectedDepartmentId: string
   visibleDepartmentIds?: string[]
   highlightedPath: string[]
-  showDependencies: boolean
-  dependencyChord?: { fromBranchId: string; toBranchId: string } | null
+  pressureMarks: PressureMark[]
+  dependencyEdges: DirectedDependencyEdge[]
+  pressureMode: boolean
+  showSecondaryPressure: boolean
+  showCrossRingTicks: boolean
   onlyAlerted: boolean
   explodeAll: boolean
   showSalesToggle: boolean
@@ -54,13 +67,24 @@ const shouldDim = (node: OrgNode, onlyAlerted: boolean, highlightedPath: string[
 
 export const RadialHud = ({
   org,
+  nodes,
+  treeNodes,
+  focusNodeId,
+  targetIds,
+  expandedNodeIds,
+  visibleIds,
+  expandedMajorOrgIds,
+  activeTab,
   selectedBranchId,
   selectedDivisionId,
   selectedDepartmentId,
   visibleDepartmentIds,
   highlightedPath,
-  showDependencies,
-  dependencyChord,
+  pressureMarks,
+  dependencyEdges,
+  pressureMode,
+  showSecondaryPressure,
+  showCrossRingTicks,
   onlyAlerted,
   explodeAll,
   showSalesToggle,
@@ -77,77 +101,151 @@ export const RadialHud = ({
   const center = size / 2
   const padding = 40
   const ring3Outer = center - padding - 14
-  const ring3Inner = ring3Outer - 36
-  const ring2Outer = ring3Inner - 10
+  const ring3Inner = ring3Outer - 28
+  const ring2Outer = ring3Inner - 8
   const ring2Inner = ring2Outer - 36
-  const ring1Outer = ring2Inner - 8
-  const ring1Inner = ring1Outer - 80
+  const ring1Outer = ring2Inner - 10
+  const ring1Inner = ring1Outer - 120
 
-  const branchAngle = 360 / branchIds.length
-  const branchWedges = branchIds.map((branchId, index) => {
-    const startAngle = index * branchAngle
-    const endAngle = startAngle + branchAngle
-    return { branchId, startAngle, endAngle }
-  })
+  const ring0Nodes = treeNodes.filter((node) => node.level === 'branch')
+  const ring1Nodes = treeNodes.filter((node) => node.level === 'division')
+  const ring2Nodes = treeNodes.filter((node) => node.level === 'department')
+  const ring3Nodes = treeNodes.filter((node) => node.level === 'team')
+
+  const divisionsByBranch = ring1Nodes.reduce<Record<string, import('../../data/hudModel').OrgNode[]>>((acc, node) => {
+    if (!node.parentId) return acc
+    if (!acc[node.parentId]) acc[node.parentId] = []
+    acc[node.parentId].push(node)
+    return acc
+  }, {})
+
+  const departmentsByDivision = ring2Nodes.reduce<Record<string, import('../../data/hudModel').OrgNode[]>>((acc, node) => {
+    if (!node.parentId) return acc
+    if (!acc[node.parentId]) acc[node.parentId] = []
+    acc[node.parentId].push(node)
+    return acc
+  }, {})
+
+  const teamsByDepartment = ring3Nodes.reduce<Record<string, import('../../data/hudModel').OrgNode[]>>((acc, node) => {
+    if (!node.parentId) return acc
+    if (!acc[node.parentId]) acc[node.parentId] = []
+    acc[node.parentId].push(node)
+    return acc
+  }, {})
+
+  const branchAngle = 360 / ring0Nodes.length
+  const branchWedges = ring0Nodes
+    .sort((a, b) => a.sortIndex - b.sortIndex)
+    .map((branch, index) => {
+      const startAngle = index * branchAngle
+      const endAngle = startAngle + branchAngle
+      return { branchId: branch.id, startAngle, endAngle }
+    })
 
   const selectedBranch = nodesById[selectedBranchId]
   const selectedDivision = nodesById[selectedDivisionId]
 
-  const divisionIds = explodeAll
-    ? branchIds.flatMap((branchId) => nodesById[branchId]?.childrenIds ?? [])
-    : selectedBranch?.childrenIds ?? []
-  const departmentIds = explodeAll
-    ? divisionIds.flatMap((divisionId) => nodesById[divisionId]?.childrenIds ?? [])
-    : visibleDepartmentIds ?? selectedDivision?.childrenIds ?? []
+  const isVisible = (id: string) => visibleIds.has(id)
+
+  const divisionIds = (divisionsByBranch[selectedBranchId] ?? [])
+    .map((node) => node.id)
+    .filter((id) => isVisible(id))
 
   const selectedBranchWedge = branchWedges.find((wedge) => wedge.branchId === selectedBranchId)
 
-  const divisionWedges = explodeAll
-    ? divisionIds.map((divisionId, index) => {
-        const span = 360 / divisionIds.length
-        const startAngle = span * index
-        const endAngle = startAngle + span
-        return { divisionId, startAngle, endAngle }
-      })
-    : selectedBranchWedge
-      ? divisionIds.map((divisionId, index) => {
-          const span = (selectedBranchWedge.endAngle - selectedBranchWedge.startAngle) / divisionIds.length
-          const startAngle = selectedBranchWedge.startAngle + span * index
-          const endAngle = startAngle + span
-          return { divisionId, startAngle, endAngle }
-        })
+  const makeChildWedges = (
+    startAngle: number,
+    endAngle: number,
+    childIds: string[],
+    gap: number,
+  ) => {
+    if (childIds.length === 0) return []
+    const totalGap = gap * (childIds.length - 1)
+    const span = Math.max(0, endAngle - startAngle - totalGap)
+    const childSpan = span / childIds.length
+    return childIds.map((id, index) => {
+      const childStart = startAngle + index * (childSpan + gap)
+      const childEnd = childStart + childSpan
+      return { id, startAngle: childStart, endAngle: childEnd }
+    })
+  }
+
+  const divisionWedgesByBranch = branchWedges.reduce<Record<string, { id: string; startAngle: number; endAngle: number }[]>>(
+    (acc, branch) => {
+      const childIds = expandedMajorOrgIds.has(branch.branchId)
+        ? (divisionsByBranch[branch.branchId] ?? [])
+            .map((node) => node.id)
+            .filter((id) => isVisible(id))
+        : []
+      acc[branch.branchId] = makeChildWedges(branch.startAngle, branch.endAngle, childIds, 0.6)
+      return acc
+    },
+    {},
+  )
+
+  const divisionWedges =
+    selectedBranchWedge && divisionIds.length > 0
+      ? makeChildWedges(selectedBranchWedge.startAngle, selectedBranchWedge.endAngle, divisionIds, 0.6).map(
+          (item) => ({ divisionId: item.id, startAngle: item.startAngle, endAngle: item.endAngle }),
+        )
       : []
 
   const selectedDivisionWedge = divisionWedges.find((wedge) => wedge.divisionId === selectedDivisionId)
 
-  const departmentWedges = explodeAll
-    ? departmentIds.map((departmentId, index) => {
-        const span = 360 / departmentIds.length
-        const startAngle = span * index
-        const endAngle = startAngle + span
-        return { departmentId, startAngle, endAngle }
-      })
-    : selectedDivisionWedge
-      ? departmentIds.map((departmentId, index) => {
-          const span = (selectedDivisionWedge.endAngle - selectedDivisionWedge.startAngle) / departmentIds.length
-          const startAngle = selectedDivisionWedge.startAngle + span * index
-          const endAngle = startAngle + span
-          return { departmentId, startAngle, endAngle }
-        })
-      : []
+  const departmentWedgesByDivision = Object.values(divisionWedgesByBranch).flat().reduce<
+    Record<string, { id: string; startAngle: number; endAngle: number }[]>
+  >((acc, wedge) => {
+    const childIds = (departmentsByDivision[wedge.id] ?? [])
+      .map((node) => node.id)
+      .filter((id) => isVisible(id))
+    acc[wedge.id] = makeChildWedges(wedge.startAngle, wedge.endAngle, childIds, 0.6)
+    return acc
+  }, {})
 
-  const chordPath = () => {
-    if (!dependencyChord) return ''
-    const fromBranch = branchWedges.find((wedge) => wedge.branchId === dependencyChord.fromBranchId)
-    const toBranch = branchWedges.find((wedge) => wedge.branchId === dependencyChord.toBranchId)
-    if (!fromBranch || !toBranch) return ''
+  // Team ring rendering is intentionally disabled for now.
+
+
+  const nodeById = nodes.reduce<Record<string, HudNode>>((acc, node) => {
+    acc[node.id] = node
+    return acc
+  }, {})
+
+  const pressureByTarget = pressureMarks.reduce<Record<string, PressureMark>>((acc, mark) => {
+    acc[mark.targetNodeId] = mark
+    return acc
+  }, {})
+
+  const getPressureStyles = (mark: PressureMark) => {
+    const t = mark.intensity01
+    const lerp = (a: number, b: number) => a + (b - a) * t
+    return {
+      strokeWidth: lerp(1, 3),
+      bandSize: lerp(3, 14),
+      opacity: lerp(0.22, 0.78),
+      lift: lerp(2, 12),
+      rimOpacity: lerp(0.25, 0.85),
+      shadowOpacity: lerp(0.18, 0.55),
+      shadowBlur: lerp(6, 18),
+    }
+  }
+
+  const arrowPaths = dependencyEdges.map((edge) => {
+    const fromBranch = branchWedges.find((wedge) => wedge.branchId === edge.fromId)
+    const toBranch = branchWedges.find((wedge) => wedge.branchId === edge.toId)
+    if (!fromBranch || !toBranch) return null
     const fromAngle = midAngle(fromBranch.startAngle, fromBranch.endAngle)
     const toAngle = midAngle(toBranch.startAngle, toBranch.endAngle)
-    const from = polarToCartesian(center, center, ring1Inner + 8, fromAngle)
-    const to = polarToCartesian(center, center, ring1Inner + 8, toAngle)
-    const mid = { x: center, y: center }
-    return `M ${from.x} ${from.y} Q ${mid.x} ${mid.y} ${to.x} ${to.y}`
-  }
+    const from = polarToCartesian(center, center, ring1Inner + 12, fromAngle)
+    const to = polarToCartesian(center, center, ring1Inner + 12, toAngle)
+    const mid = polarToCartesian(center, center, ring1Inner - 24, midAngle(fromAngle, toAngle))
+    const dockOuter = polarToCartesian(center, center, ring1Inner + 18, toAngle)
+    return {
+      id: edge.id,
+      weight: edge.weight,
+      d: `M ${from.x} ${from.y} Q ${mid.x} ${mid.y} ${to.x} ${to.y}`,
+      dock: { x1: to.x, y1: to.y, x2: dockOuter.x, y2: dockOuter.y },
+    }
+  }).filter(Boolean) as { id: string; weight: number; d: string; dock: { x1: number; y1: number; x2: number; y2: number } }[]
 
   const expandButtonPoint =
     showSalesToggle && selectedDivisionWedge
@@ -181,6 +279,24 @@ export const RadialHud = ({
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <filter id="pressGlow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <marker
+            id="hudArrow"
+            markerWidth="8"
+            markerHeight="8"
+            refX="6"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path d="M 0 0 L 6 3 L 0 6 z" fill="rgba(191, 214, 255, 0.85)" />
+          </marker>
         </defs>
 
         {explodeAll ? (
@@ -210,18 +326,106 @@ export const RadialHud = ({
         <circle className="hud-grid" cx={center} cy={center} r={ring2Outer + 10} />
         <circle className="hud-grid" cx={center} cy={center} r={ring3Outer + 10} />
 
+        {arrowPaths.length > 0 ? (
+          <g className="hud-arrow-layer">
+            {arrowPaths.map((path) => {
+              const strokeWidth = Math.min(3.5, 0.8 + path.weight * 0.2)
+              return (
+                <g key={path.id}>
+                  <path
+                    d={path.d}
+                    className="hud-arrow"
+                    style={{ strokeWidth }}
+                    markerEnd="url(#hudArrow)"
+                  />
+                  <line
+                    className="hud-arrow-cap"
+                    x1={path.dock.x1}
+                    y1={path.dock.y1}
+                    x2={path.dock.x2}
+                    y2={path.dock.y2}
+                    style={{ strokeWidth: Math.max(1, strokeWidth - 0.4) }}
+                  />
+                </g>
+              )
+            })}
+          </g>
+        ) : null}
+
         {branchWedges.map(({ branchId, startAngle, endAngle }) => {
           const node = nodesById[branchId]
           const path = describeArc(center, center, ring1Outer, ring1Inner, startAngle, endAngle)
           const isSelected = branchId === selectedBranchId
           const isHighlighted = highlightedPath.includes(branchId)
+          const mark = pressureByTarget[branchId]
+          const showPressure =
+            pressureMode && mark && (showSecondaryPressure || mark.tier === 'primary') && activeTab === 'dependencies'
+          const visualState =
+            pressureMode && focusNodeId && activeTab === 'dependencies'
+              ? branchId === focusNodeId
+                ? 'focus'
+                : targetIds.has(branchId)
+                  ? 'target'
+                  : 'nonTarget'
+              : 'default'
           const dim = shouldDim(node, onlyAlerted, highlightedPath)
           const labelAngle = midAngle(startAngle, endAngle)
           const labelRadius = ring1Inner + (ring1Outer - ring1Inner) * 0.52
           const labelPoint = polarToCartesian(center, center, labelRadius, labelAngle)
           const labelLines = splitLabel(node.name)
+          const pressureStyles = mark ? getPressureStyles(mark) : null
+          const bandOuter = mark ? ring1Outer + 6 + (mark.intensity01 * 8) : ring1Outer + 6
+          const bandInner = ring1Outer + 2
+          const liftPx = pressureStyles?.lift ?? 0
+          const liftX = Math.cos((labelAngle - 90) * (Math.PI / 180)) * liftPx
+          const liftY = Math.sin((labelAngle - 90) * (Math.PI / 180)) * liftPx
           return (
-            <g key={branchId} className="hud-branch-group">
+            <g
+              key={branchId}
+              className="hud-branch-group"
+              data-visual={visualState}
+              style={{
+                transform: showPressure ? `translate(${liftX}px, ${liftY}px)` : undefined,
+                transition: 'transform 200ms ease-out',
+                ['--press-intensity' as string]: mark?.intensity01 ?? 0,
+                ['--dx' as string]: `${liftX}px`,
+                ['--dy' as string]: `${liftY}px`,
+              }}
+            >
+              {pressureMode && visualState === 'focus' ? (
+                <path
+                  d={describeArc(center, center, ring1Outer + 6, ring1Inner - 6, startAngle, endAngle)}
+                  className="focusRing"
+                />
+              ) : null}
+              {showPressure && mark ? (
+                <>
+                  <path
+                    d={path}
+                    className="pressureHalo"
+                    style={{
+                      filter: `drop-shadow(0 0 ${pressureStyles?.shadowBlur ?? 6}px rgba(0,0,0,0.45))`,
+                    }}
+                  />
+                  <path
+                    d={path}
+                    className="pressureStroke"
+                  />
+                  <path
+                    d={describeArc(center, center, bandOuter, bandInner, startAngle, endAngle)}
+                    className="pressureBand"
+                  />
+                  {showCrossRingTicks && mark.crossRing ? (
+                    <line
+                      className="pressureTick"
+                      x1={polarToCartesian(center, center, ring1Outer + 14, labelAngle).x}
+                      y1={polarToCartesian(center, center, ring1Outer + 14, labelAngle).y}
+                      x2={polarToCartesian(center, center, ring1Outer + 24, labelAngle).x}
+                      y2={polarToCartesian(center, center, ring1Outer + 24, labelAngle).y}
+                    />
+                  ) : null}
+                </>
+              ) : null}
               <path
                 d={path}
                 className={`hud-wedge ${statusClass(node.status)} ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlight' : ''} ${dim ? 'is-dim' : ''}`}
@@ -248,47 +452,45 @@ export const RadialHud = ({
           )
         })}
 
-        {divisionWedges.map(({ divisionId, startAngle, endAngle }) => {
-          const node = nodesById[divisionId]
+        {Object.values(divisionWedgesByBranch).flat().map(({ id, startAngle, endAngle }) => {
+          const node = nodesById[id]
           const path = describeArc(center, center, ring2Outer, ring2Inner, startAngle, endAngle)
-          const isSelected = divisionId === selectedDivisionId
-          const isHighlighted = highlightedPath.includes(divisionId)
+          const isSelected = id === selectedDivisionId
+          const isHighlighted = highlightedPath.includes(id)
           const dim = shouldDim(node, onlyAlerted, highlightedPath)
           return (
             <path
-              key={divisionId}
+              key={id}
               d={path}
               className={`hud-wedge hud-wedge--inner ${statusClass(node.status)} ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlight' : ''} ${dim ? 'is-dim' : ''}`}
-              onMouseEnter={(event) => onHover({ nodeId: divisionId, x: event.clientX, y: event.clientY })}
-              onMouseMove={(event) => onHover({ nodeId: divisionId, x: event.clientX, y: event.clientY })}
+              onMouseEnter={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
+              onMouseMove={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
               onMouseLeave={onHoverOut}
-              onClick={() => onSelectDivision(divisionId)}
+              onClick={() => onSelectDivision(id)}
             />
           )
         })}
 
-        {departmentWedges.map(({ departmentId, startAngle, endAngle }) => {
-          const node = nodesById[departmentId]
+        {Object.values(departmentWedgesByDivision).flat().map(({ id, startAngle, endAngle }) => {
+          const node = nodesById[id]
           const path = describeArc(center, center, ring3Outer, ring3Inner, startAngle, endAngle)
-          const isSelected = departmentId === selectedDepartmentId
-          const isHighlighted = highlightedPath.includes(departmentId)
+          const isSelected = id === selectedDepartmentId
+          const isHighlighted = highlightedPath.includes(id)
           const dim = shouldDim(node, onlyAlerted, highlightedPath)
           return (
             <path
-              key={departmentId}
+              key={id}
               d={path}
               className={`hud-wedge hud-wedge--outer ${statusClass(node.status)} ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlight' : ''} ${dim ? 'is-dim' : ''}`}
-              onMouseEnter={(event) => onHover({ nodeId: departmentId, x: event.clientX, y: event.clientY })}
-              onMouseMove={(event) => onHover({ nodeId: departmentId, x: event.clientX, y: event.clientY })}
+              onMouseEnter={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
+              onMouseMove={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
               onMouseLeave={onHoverOut}
-              onClick={() => onSelectDepartment(departmentId)}
+              onClick={() => onSelectDepartment(id)}
             />
           )
         })}
 
         <circle className="hud-core" cx={center} cy={center} r={ring1Inner - 18} />
-
-        {showDependencies && dependencyChord ? <path className="hud-chord" d={chordPath()} /> : null}
 
         <g className="hud-ticks">
           {Array.from({ length: 72 }).map((_, index) => {

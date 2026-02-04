@@ -42,3 +42,8 @@
 .hud-tooltip.status-red {
   border-color: rgba(255, 127, 127, 0.7);
 }
+
+.hud-tooltip--edge {
+  max-width: 280px;
+  font-size: 12px;
+}

@@ -41,6 +41,41 @@
   gap: 12px;
 }
 
+.hud-panel__tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.hud-panel__tabs button {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(13, 18, 28, 0.8);
+  color: inherit;
+  padding: 8px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.hud-panel__tabs button.is-active {
+  border-color: rgba(191, 214, 255, 0.8);
+  color: rgba(191, 214, 255, 0.95);
+}
+
+.hud-advanced {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
+
 .hud-toggle,
 .hud-chip {
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -137,7 +172,7 @@
 
 .hud-panel__deps li {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 12px 1fr auto;
   gap: 8px;
   font-size: 12px;
   text-transform: uppercase;
@@ -145,6 +180,26 @@
 }
 
 .hud-panel__deps li span:last-child {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hud-panel__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 3px;
+  background: rgba(76, 226, 165, 0.8);
+}
+
+.hud-panel__deps li.status-yellow .hud-panel__dot {
+  background: rgba(240, 199, 107, 0.9);
+}
+
+.hud-panel__deps li.status-red .hud-panel__dot {
+  background: rgba(255, 127, 127, 0.9);
+}
+
+.hud-panel__weight {
   color: rgba(255, 255, 255, 0.7);
 }
 

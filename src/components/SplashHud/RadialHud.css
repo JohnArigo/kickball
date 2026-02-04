@@ -29,13 +29,15 @@
   filter: url(#hudGlow);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .hud-branch-group {
+    transition: none !important;
+  }
+}
+
 .hud-wedge.is-highlight {
   stroke: rgba(255, 255, 255, 0.7);
   stroke-width: 2;
-}
-
-.hud-wedge.status-red {
-  filter: url(#hudGlow);
 }
 
 .hud-wedge.is-dim {
@@ -65,11 +67,78 @@
   fill: #7a2e38;
 }
 
-.hud-chord {
+.hud-branch-group[data-visual="nonTarget"] .hud-wedge {
+  filter: brightness(0.55) saturate(0.55);
+}
+
+.hud-branch-group[data-visual="nonTarget"] .hud-branch-label {
+  opacity: 0.82;
+}
+
+.hud-branch-group[data-visual="target"] .hud-wedge {
+  filter: none;
+}
+
+.hud-branch-group[data-visual="focus"] .hud-wedge {
+  filter: brightness(1.08) saturate(1.05);
+}
+
+.hud-branch-group[data-visual="focus"] .hud-branch-label {
+  opacity: 1;
+}
+
+.focusRing {
   fill: none;
-  stroke: rgba(191, 214, 255, 0.7);
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 1.5;
+}
+
+.pressureStroke {
+  fill: none;
+  stroke: var(--hud-accent);
+  stroke-width: calc(var(--press-stroke-base) + var(--press-intensity) * (var(--press-stroke-max) - var(--press-stroke-base)));
+  opacity: calc(0.25 + var(--press-intensity) * (0.85 - 0.25));
+}
+
+.pressureHalo {
+  fill: none;
+  stroke: rgba(220, 235, 255, 0.35);
+  opacity: calc(0.18 + var(--press-intensity) * (0.55 - 0.18));
+}
+
+.pressureBand {
+  fill: none;
+  stroke: rgba(220, 235, 255, 0.3);
+  stroke-width: calc(var(--press-band-base) + var(--press-intensity) * (var(--press-band-max) - var(--press-band-base)));
+  opacity: calc(var(--press-low-opacity) + var(--press-intensity) * (var(--press-high-opacity) - var(--press-low-opacity)));
+}
+
+.pressureTick {
+  stroke: rgba(220, 235, 255, 0.5);
   stroke-width: 2;
-  filter: url(#hudGlow);
+}
+
+.hud-arrow-layer {
+  pointer-events: none;
+}
+
+.hud-arrow {
+  fill: none;
+  stroke: rgba(191, 214, 255, 0.75);
+}
+
+.hud-arrow-cap {
+  stroke: rgba(191, 214, 255, 0.75);
+}
+
+.splash-hud.is-pressure .hud-arrow,
+.splash-hud.is-pressure .hud-arrow-cap {
+  opacity: 0.65;
+}
+
+.splash-hud.is-pressure .hud-grid,
+.splash-hud.is-pressure .hud-ticks line {
+  opacity: 0.2;
 }
 
 .hud-ticks line {
@@ -121,4 +190,8 @@
   .radial-hud {
     max-width: 980px;
   }
+}
+.hud-wedge.is-target {
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 2;
 }

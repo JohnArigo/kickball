@@ -9,6 +9,24 @@
   --shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
   --density: 1;
   --font-sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --hud-bg: #0b111b;
+  --hud-panel: rgba(16, 22, 34, 0.8);
+  --hud-border: rgba(255, 255, 255, 0.12);
+  --hud-text: #f1f4f9;
+  --hud-muted: rgba(255, 255, 255, 0.65);
+  --hud-accent: rgba(191, 214, 255, 0.9);
+  --hud-green: #4ce2a5;
+  --hud-yellow: #f0c76b;
+  --hud-red: #ff7f7f;
+  --press-low-opacity: 0.22;
+  --press-mid-opacity: 0.45;
+  --press-high-opacity: 0.78;
+  --press-stroke-base: 1px;
+  --press-stroke-max: 4px;
+  --press-glow-base: 6px;
+  --press-glow-max: 18px;
+  --press-band-base: 3px;
+  --press-band-max: 14px;
 }
 
 @media (max-width: 1024px) {
