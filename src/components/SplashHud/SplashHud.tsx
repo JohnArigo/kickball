@@ -10,7 +10,7 @@ import { deriveFunctionEdges } from '../../data/deriveFunctionEdges'
 import { derivePressureMarks, type DepEdge, type HudNode } from '../../data/derivePressureMarks'
 import { computeFocusTargetsAndExpansion } from '../../data/deriveFocusExpansion'
 import { deriveVisibilityPolicy } from '../../data/deriveVisibilityPolicy'
-import { CEL } from '../../data/constants'
+import { CEL, LEVEL } from '../../data/constants'
 import type { OrgNode as HudOrgNode } from '../../data/hudModel'
 import { buildMockCrossLevelDeps } from '../../data/mockCrossLevelDeps'
 
@@ -149,7 +149,8 @@ export const SplashHud = ({ seed }: { seed: number }) => {
     explodeAll,
     org.rootId,
   )
-  const focusResult = computeFocusTargetsAndExpansion(focusNodeId, treeNodes, activeEdges, CEL)
+  const targetVisibleLevel = explodeAll ? LEVEL.OFFICE : CEL
+  const focusResult = computeFocusTargetsAndExpansion(focusNodeId, treeNodes, activeEdges, targetVisibleLevel)
   const pressureEdges = focusResult.targets.reduce<DepEdge[]>((acc, target) => {
     const existing = acc.find((edge) => edge.toId === target.id)
     if (existing) {

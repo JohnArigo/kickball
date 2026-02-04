@@ -1,5 +1,5 @@
 import type { DepEdge, OrgNode } from './hudModel'
-import { CEL, FDD, LEVEL, MAX_REVEALS, RCL, levelIndex } from './constants'
+import { FDD, LEVEL, MAX_REVEALS, RCL, levelIndex } from './constants'
 
 export function deriveVisibilityPolicy(
   activeTab: string,
@@ -17,7 +17,7 @@ export function deriveVisibilityPolicy(
 
   const isDependencies = activeTab === 'Dependencies'
 
-  if (explodeAllEnabled && isDependencies) {
+  if (explodeAllEnabled) {
     applyContextExplodeRules(nodes, visibleIds)
   } else {
     applyFocusModeRules(focusStack, nodes, activeEdges, isDependencies, visibleIds)
@@ -99,7 +99,7 @@ function applyFocusDrillDepth(
 
 function applyContextExplodeRules(nodes: Map<string, OrgNode>, visibleIds: Set<string>) {
   for (const node of nodes.values()) {
-    if (levelIndex(node.level) <= CEL) visibleIds.add(node.id)
+    visibleIds.add(node.id)
   }
 }
 

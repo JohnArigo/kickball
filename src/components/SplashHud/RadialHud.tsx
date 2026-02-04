@@ -86,18 +86,24 @@ export const RadialHud = ({
   const size = 760
   const center = size / 2
   const padding = 40
-  const ring3Outer = center - padding - 14
+  const outerMost = center - padding - 14
+  const ring0Nodes = treeNodes.filter((node) => node.level === 'branch' && visibleIds.has(node.id))
+  const ring1Nodes = treeNodes.filter((node) => node.level === 'division' && visibleIds.has(node.id))
+  const ring2Nodes = treeNodes.filter((node) => node.level === 'department' && visibleIds.has(node.id))
+  const ring3Nodes = treeNodes.filter((node) => node.level === 'team' && visibleIds.has(node.id))
+  const hasDivisions = ring1Nodes.length > 0
+  const hasDepartments = ring2Nodes.length > 0
+  const hasTeams = ring3Nodes.length > 0
+
+  const ring4Outer = outerMost
+  const ring4Inner = ring4Outer - (hasTeams ? 24 : 0)
+  const ring3Outer = ring4Inner - (hasTeams ? 8 : 0)
   const ring3Inner = ring3Outer - 28
   const ring2Outer = ring3Inner - 8
   const ring2Inner = ring2Outer - 36
   const ring1Outer = ring2Inner - 10
   const ring1Inner = ring1Outer - 120
-
-  const ring0Nodes = treeNodes.filter((node) => node.level === 'branch' && visibleIds.has(node.id))
-  const ring1Nodes = treeNodes.filter((node) => node.level === 'division' && visibleIds.has(node.id))
-  const ring2Nodes = treeNodes.filter((node) => node.level === 'department' && visibleIds.has(node.id))
-  const hasDivisions = ring1Nodes.length > 0
-  const hasDepartments = ring2Nodes.length > 0
+  const outerRing = hasTeams ? ring4Outer : ring3Outer
 
   const divisionsByBranch = ring1Nodes.reduce<Record<string, import('../../data/hudModel').OrgNode[]>>((acc, node) => {
     if (!node.parentId) return acc
@@ -107,6 +113,13 @@ export const RadialHud = ({
   }, {})
 
   const departmentsByDivision = ring2Nodes.reduce<Record<string, import('../../data/hudModel').OrgNode[]>>((acc, node) => {
+    if (!node.parentId) return acc
+    if (!acc[node.parentId]) acc[node.parentId] = []
+    acc[node.parentId].push(node)
+    return acc
+  }, {})
+
+  const teamsByDepartment = ring3Nodes.reduce<Record<string, import('../../data/hudModel').OrgNode[]>>((acc, node) => {
     if (!node.parentId) return acc
     if (!acc[node.parentId]) acc[node.parentId] = []
     acc[node.parentId].push(node)
@@ -162,13 +175,30 @@ export const RadialHud = ({
     return acc
   }, {})
 
-  // Team ring rendering is intentionally disabled for now.
+  const teamWedgesByDepartment = Object.values(departmentWedgesByDivision).flat().reduce<
+    Record<string, { id: string; startAngle: number; endAngle: number }[]>
+  >((acc, wedge) => {
+    const childIds = (teamsByDepartment[wedge.id] ?? [])
+      .map((node) => node.id)
+      .filter((id) => isVisible(id))
+    acc[wedge.id] = makeChildWedges(wedge.startAngle, wedge.endAngle, childIds, 0.6)
+    return acc
+  }, {})
 
 
   const pressureByTarget = pressureMarks.reduce<Record<string, PressureMark>>((acc, mark) => {
     acc[mark.targetNodeId] = mark
     return acc
   }, {})
+
+  const getVisualState = (id: string) =>
+    pressureMode && focusNodeId && activeTab === 'dependencies'
+      ? id === focusNodeId
+        ? 'focus'
+        : targetIds.has(id)
+          ? 'target'
+          : 'nonTarget'
+      : 'default'
 
   const getPressureStyles = (mark: PressureMark) => {
     const t = mark.intensity01
@@ -237,8 +267,8 @@ export const RadialHud = ({
           <g className="hud-branch-guides">
             {branchWedges.map(({ branchId, startAngle, endAngle }) => {
               const dividerStart = polarToCartesian(center, center, ring1Inner, startAngle)
-              const dividerEnd = polarToCartesian(center, center, ring3Outer + 12, startAngle)
-              const outline = describeArc(center, center, ring3Outer + 6, ring2Inner - 6, startAngle, endAngle)
+              const dividerEnd = polarToCartesian(center, center, outerRing + 12, startAngle)
+              const outline = describeArc(center, center, outerRing + 6, ring2Inner - 6, startAngle, endAngle)
               return (
                 <g key={`guide-${branchId}`}>
                   <path className="hud-branch-outline" d={outline} />
@@ -259,6 +289,7 @@ export const RadialHud = ({
         <circle className="hud-grid" cx={center} cy={center} r={ring1Inner + 18} />
         {hasDivisions ? <circle className="hud-grid" cx={center} cy={center} r={ring2Outer + 10} /> : null}
         {hasDepartments ? <circle className="hud-grid" cx={center} cy={center} r={ring3Outer + 10} /> : null}
+        {hasTeams ? <circle className="hud-grid" cx={center} cy={center} r={ring4Outer + 10} /> : null}
 
         {arrowPaths.length > 0 ? (
           <g className="hud-arrow-layer">
@@ -294,14 +325,7 @@ export const RadialHud = ({
           const mark = pressureByTarget[branchId]
           const showPressure =
             pressureMode && mark && (showSecondaryPressure || mark.tier === 'primary') && activeTab === 'dependencies'
-          const visualState =
-            pressureMode && focusNodeId && activeTab === 'dependencies'
-              ? branchId === focusNodeId
-                ? 'focus'
-                : targetIds.has(branchId)
-                  ? 'target'
-                  : 'nonTarget'
-              : 'default'
+          const visualState = getVisualState(branchId)
           const dim = shouldDim(node, onlyAlerted, highlightedPath)
           const labelAngle = midAngle(startAngle, endAngle)
           const labelRadius = ring1Inner + (ring1Outer - ring1Inner) * 0.52
@@ -363,6 +387,7 @@ export const RadialHud = ({
               <path
                 d={path}
                 className={`hud-wedge ${statusClass(node.status)} ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlight' : ''} ${dim ? 'is-dim' : ''}`}
+                data-visual={visualState}
                 onMouseEnter={(event) => onHover({ nodeId: branchId, x: event.clientX, y: event.clientY })}
                 onMouseMove={(event) => onHover({ nodeId: branchId, x: event.clientX, y: event.clientY })}
                 onMouseLeave={onHoverOut}
@@ -392,16 +417,54 @@ export const RadialHud = ({
           const isSelected = id === selectedDivisionId
           const isHighlighted = highlightedPath.includes(id)
           const dim = shouldDim(node, onlyAlerted, highlightedPath)
+          const mark = pressureByTarget[id]
+          const showPressure =
+            pressureMode && mark && (showSecondaryPressure || mark.tier === 'primary') && activeTab === 'dependencies'
+          const visualState = getVisualState(id)
+          const pressureStyles = mark ? getPressureStyles(mark) : null
+          const labelAngle = midAngle(startAngle, endAngle)
+          const liftPx = pressureStyles?.lift ?? 0
+          const liftX = Math.cos((labelAngle - 90) * (Math.PI / 180)) * liftPx
+          const liftY = Math.sin((labelAngle - 90) * (Math.PI / 180)) * liftPx
+          const bandOuter = ring2Outer + 6 + (mark?.intensity01 ?? 0) * 8
+          const bandInner = ring2Outer + 2
           return (
-            <path
+            <g
               key={id}
-              d={path}
-              className={`hud-wedge hud-wedge--inner ${statusClass(node.status)} ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlight' : ''} ${dim ? 'is-dim' : ''}`}
-              onMouseEnter={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
-              onMouseMove={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
-              onMouseLeave={onHoverOut}
-              onClick={() => onSelectDivision(id)}
-            />
+              className="hud-inner-group"
+              data-visual={visualState}
+              style={{
+                transform: showPressure ? `translate(${liftX}px, ${liftY}px)` : undefined,
+                transition: 'transform 200ms ease-out',
+                ['--press-intensity' as string]: mark?.intensity01 ?? 0,
+              }}
+            >
+              {showPressure && mark ? (
+                <>
+                  <path
+                    d={path}
+                    className="pressureHalo"
+                    style={{
+                      filter: `drop-shadow(0 0 ${pressureStyles?.shadowBlur ?? 6}px rgba(0,0,0,0.45))`,
+                    }}
+                  />
+                  <path d={path} className="pressureStroke" />
+                  <path
+                    d={describeArc(center, center, bandOuter, bandInner, startAngle, endAngle)}
+                    className="pressureBand"
+                  />
+                </>
+              ) : null}
+              <path
+                d={path}
+                className={`hud-wedge hud-wedge--inner ${statusClass(node.status)} ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlight' : ''} ${dim ? 'is-dim' : ''}`}
+                data-visual={visualState}
+                onMouseEnter={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
+                onMouseMove={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
+                onMouseLeave={onHoverOut}
+                onClick={() => onSelectDivision(id)}
+              />
+            </g>
           )
         })}
 
@@ -411,27 +474,122 @@ export const RadialHud = ({
           const isSelected = id === selectedDepartmentId
           const isHighlighted = highlightedPath.includes(id)
           const dim = shouldDim(node, onlyAlerted, highlightedPath)
+          const mark = pressureByTarget[id]
+          const showPressure =
+            pressureMode && mark && (showSecondaryPressure || mark.tier === 'primary') && activeTab === 'dependencies'
+          const visualState = getVisualState(id)
+          const pressureStyles = mark ? getPressureStyles(mark) : null
+          const labelAngle = midAngle(startAngle, endAngle)
+          const liftPx = pressureStyles?.lift ?? 0
+          const liftX = Math.cos((labelAngle - 90) * (Math.PI / 180)) * liftPx
+          const liftY = Math.sin((labelAngle - 90) * (Math.PI / 180)) * liftPx
+          const bandOuter = ring3Outer + 6 + (mark?.intensity01 ?? 0) * 8
+          const bandInner = ring3Outer + 2
           return (
-            <path
+            <g
               key={id}
-              d={path}
-              className={`hud-wedge hud-wedge--outer ${statusClass(node.status)} ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlight' : ''} ${dim ? 'is-dim' : ''}`}
-              onMouseEnter={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
-              onMouseMove={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
-              onMouseLeave={onHoverOut}
-              onClick={() => onSelectDepartment(id)}
-            />
+              className="hud-inner-group"
+              data-visual={visualState}
+              style={{
+                transform: showPressure ? `translate(${liftX}px, ${liftY}px)` : undefined,
+                transition: 'transform 200ms ease-out',
+                ['--press-intensity' as string]: mark?.intensity01 ?? 0,
+              }}
+            >
+              {showPressure && mark ? (
+                <>
+                  <path
+                    d={path}
+                    className="pressureHalo"
+                    style={{
+                      filter: `drop-shadow(0 0 ${pressureStyles?.shadowBlur ?? 6}px rgba(0,0,0,0.45))`,
+                    }}
+                  />
+                  <path d={path} className="pressureStroke" />
+                  <path
+                    d={describeArc(center, center, bandOuter, bandInner, startAngle, endAngle)}
+                    className="pressureBand"
+                  />
+                </>
+              ) : null}
+              <path
+                d={path}
+                className={`hud-wedge hud-wedge--outer ${statusClass(node.status)} ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlight' : ''} ${dim ? 'is-dim' : ''}`}
+                data-visual={visualState}
+                onMouseEnter={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
+                onMouseMove={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
+                onMouseLeave={onHoverOut}
+                onClick={() => onSelectDepartment(id)}
+              />
+            </g>
           )
         })}
 
+        {hasTeams
+          ? Object.values(teamWedgesByDepartment).flat().map(({ id, startAngle, endAngle }) => {
+              const node = nodesById[id]
+              const path = describeArc(center, center, ring4Outer, ring4Inner, startAngle, endAngle)
+              const isHighlighted = highlightedPath.includes(id)
+              const dim = shouldDim(node, onlyAlerted, highlightedPath)
+              const mark = pressureByTarget[id]
+              const showPressure =
+                pressureMode && mark && (showSecondaryPressure || mark.tier === 'primary') && activeTab === 'dependencies'
+              const visualState = getVisualState(id)
+              const pressureStyles = mark ? getPressureStyles(mark) : null
+              const labelAngle = midAngle(startAngle, endAngle)
+              const liftPx = pressureStyles?.lift ?? 0
+              const liftX = Math.cos((labelAngle - 90) * (Math.PI / 180)) * liftPx
+              const liftY = Math.sin((labelAngle - 90) * (Math.PI / 180)) * liftPx
+              const bandOuter = ring4Outer + 6 + (mark?.intensity01 ?? 0) * 8
+              const bandInner = ring4Outer + 2
+              return (
+                <g
+                  key={id}
+                  className="hud-inner-group"
+                  data-visual={visualState}
+                  style={{
+                    transform: showPressure ? `translate(${liftX}px, ${liftY}px)` : undefined,
+                    transition: 'transform 200ms ease-out',
+                    ['--press-intensity' as string]: mark?.intensity01 ?? 0,
+                  }}
+                >
+                  {showPressure && mark ? (
+                    <>
+                      <path
+                        d={path}
+                        className="pressureHalo"
+                        style={{
+                          filter: `drop-shadow(0 0 ${pressureStyles?.shadowBlur ?? 6}px rgba(0,0,0,0.45))`,
+                        }}
+                      />
+                      <path d={path} className="pressureStroke" />
+                      <path
+                        d={describeArc(center, center, bandOuter, bandInner, startAngle, endAngle)}
+                        className="pressureBand"
+                      />
+                    </>
+                  ) : null}
+                  <path
+                    d={path}
+                    className={`hud-wedge hud-wedge--outer ${statusClass(node.status)} ${isHighlighted ? 'is-highlight' : ''} ${dim ? 'is-dim' : ''}`}
+                    data-visual={visualState}
+                    onMouseEnter={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
+                    onMouseMove={(event) => onHover({ nodeId: id, x: event.clientX, y: event.clientY })}
+                    onMouseLeave={onHoverOut}
+                  />
+                </g>
+              )
+            })
+          : null}
+
         <circle className="hud-core" cx={center} cy={center} r={ring1Inner - 18} />
 
-        {hasDepartments ? (
+        {hasDepartments || hasTeams ? (
           <g className="hud-ticks">
             {Array.from({ length: 72 }).map((_, index) => {
               const angle = (360 / 72) * index
-              const outer = polarToCartesian(center, center, ring3Outer + 12, angle)
-              const inner = polarToCartesian(center, center, ring3Outer + (index % 3 === 0 ? 2 : 6), angle)
+              const outer = polarToCartesian(center, center, outerRing + 12, angle)
+              const inner = polarToCartesian(center, center, outerRing + (index % 3 === 0 ? 2 : 6), angle)
               return (
                 <line
                   key={`tick-${angle}`}

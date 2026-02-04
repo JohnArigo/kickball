@@ -87,6 +87,18 @@
   opacity: 1;
 }
 
+.hud-wedge[data-visual="nonTarget"] {
+  filter: brightness(0.55) saturate(0.55);
+}
+
+.hud-wedge[data-visual="target"] {
+  filter: none;
+}
+
+.hud-wedge[data-visual="focus"] {
+  filter: brightness(1.08) saturate(1.05);
+}
+
 .focusRing {
   fill: none;
   stroke: rgba(255, 255, 255, 0.95);
