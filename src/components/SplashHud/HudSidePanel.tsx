@@ -137,7 +137,7 @@ export const HudSidePanel = ({
                 </button>
                 <button className={`hud-toggle ${explodeAll ? 'is-on' : ''}`} onClick={onToggleExplodeAll}>
                   <span className="hud-toggle__pill" />
-                  <span>Show Departments (All Orgs)</span>
+                  <span>Explode All</span>
                 </button>
                 <button className="hud-advanced" onClick={onToggleAdvanced}>
                   {showAdvanced ? 'Hide Advanced' : 'Advanced'}

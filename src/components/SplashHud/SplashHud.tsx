@@ -10,6 +10,7 @@ import { deriveFunctionEdges } from '../../data/deriveFunctionEdges'
 import { derivePressureMarks, type DepEdge, type HudNode } from '../../data/derivePressureMarks'
 import { computeFocusTargetsAndExpansion } from '../../data/deriveFocusExpansion'
 import { deriveVisibilityPolicy } from '../../data/deriveVisibilityPolicy'
+import { CEL } from '../../data/constants'
 import type { OrgNode as HudOrgNode } from '../../data/hudModel'
 import { buildMockCrossLevelDeps } from '../../data/mockCrossLevelDeps'
 
@@ -55,7 +56,6 @@ export const SplashHud = ({ seed }: { seed: number }) => {
   const [focusStack, setFocusStack] = useState<string[]>([initialPath.branchId])
   const [onlyAlerted, setOnlyAlerted] = useState(false)
   const [explodeAll, setExplodeAll] = useState(false)
-  const [expandDepartments, setExpandDepartments] = useState(false)
   const [pulseDrivers, setPulseDrivers] = useState(false)
   const driversRef = useRef<HTMLDivElement | null>(null)
 
@@ -100,38 +100,23 @@ export const SplashHud = ({ seed }: { seed: number }) => {
     Boolean,
   ) as string[]
 
-  const isExpandableBranch = selectedBranch?.name === 'Product & Engineering'
-  const allDepartmentsForDivision = selectedDivision?.childrenIds ?? []
-  const visibleDepartments = isExpandableBranch && !expandDepartments
-    ? [...allDepartmentsForDivision]
-        .map((id) => org.nodesById[id])
-        .filter(Boolean)
-        .sort((a, b) => a.score - b.score)
-        .slice(0, 4)
-        .map((node) => node.id)
-    : allDepartmentsForDivision
+  const treeNodes: HudOrgNode[] = useMemo(
+    () =>
+      Object.values(org.nodesById).map((node) => ({
+        id: node.id,
+        label: node.name,
+        parentId: node.parentId,
+        level: node.level,
+        majorOrgId: node.level === 'branch' ? node.id : node.parentId ? `branch-${node.id.split('-')[1]}` : node.id,
+        childrenIds: node.childrenIds,
+        sortIndex: node.parentId ? org.nodesById[node.parentId]?.childrenIds.indexOf(node.id) ?? 0 : 0,
+        status: node.status,
+        score: node.score,
+      })),
+    [org],
+  )
 
-  useEffect(() => {
-    if (!isExpandableBranch || expandDepartments) return
-    if (visibleDepartments.length === 0) return
-    if (!visibleDepartments.includes(selectedDepartmentId)) {
-      setSelectedDepartmentId(visibleDepartments[0])
-    }
-  }, [expandDepartments, isExpandableBranch, selectedDepartmentId, visibleDepartments])
-
-  const activeNode = selectedDepartment ?? selectedDivision ?? selectedBranch
-
-  const treeNodes: HudOrgNode[] = Object.values(org.nodesById).map((node) => ({
-    id: node.id,
-    label: node.name,
-    parentId: node.parentId,
-    level: node.level,
-    majorOrgId: node.level === 'branch' ? node.id : node.parentId ? `branch-${node.id.split('-')[1]}` : node.id,
-    childrenIds: node.childrenIds,
-    sortIndex: node.parentId ? org.nodesById[node.parentId]?.childrenIds.indexOf(node.id) ?? 0 : 0,
-    status: node.status,
-    score: node.score,
-  }))
+  const treeNodeMap = useMemo(() => new Map(treeNodes.map((node) => [node.id, node])), [treeNodes])
 
   const hudNodes: HudNode[] = treeNodes.map((node) => ({
     id: node.id,
@@ -156,16 +141,31 @@ export const SplashHud = ({ seed }: { seed: number }) => {
 
   const focusNodeId = focusStack.at(-1) ?? selectedBranchId
   const visibility = deriveVisibilityPolicy(
-    panelTab,
+    panelTab === 'dependencies' ? 'Dependencies' : panelTab,
     focusStack,
-    treeNodes,
+    treeNodeMap,
+    org.branchIds,
     activeEdges,
-    explodeAll && panelTab === 'dependencies',
-    3,
+    explodeAll,
+    org.rootId,
   )
-  const focusResult = computeFocusTargetsAndExpansion(focusNodeId, treeNodes, activeEdges, visibility.visibleLevel)
+  const focusResult = computeFocusTargetsAndExpansion(focusNodeId, treeNodes, activeEdges, CEL)
+  const pressureEdges = focusResult.targets.reduce<DepEdge[]>((acc, target) => {
+    const existing = acc.find((edge) => edge.toId === target.id)
+    if (existing) {
+      if (target.weight > existing.weight) existing.weight = target.weight
+      return acc
+    }
+    acc.push({
+      id: `${focusNodeId ?? 'focus'}__${target.id}`,
+      fromId: focusNodeId ?? target.id,
+      toId: target.id,
+      weight: target.weight,
+    })
+    return acc
+  }, [])
   const pressureMarks = pressureMode
-    ? derivePressureMarks(focusNodeId, hudNodes, activeEdges)
+    ? derivePressureMarks(focusNodeId, hudNodes, pressureEdges)
     : []
 
   const sortedEdges = activeEdges.slice().sort((a, b) => b.weight - a.weight)
@@ -267,12 +267,10 @@ export const SplashHud = ({ seed }: { seed: number }) => {
         <div className="splash-hud__radial-shell">
           <RadialHud
             org={org}
-            nodes={hudNodes}
             treeNodes={treeNodes}
             selectedBranchId={selectedBranchId}
             selectedDivisionId={selectedDivisionId}
             selectedDepartmentId={selectedDepartmentId}
-            visibleDepartmentIds={explodeAll ? undefined : visibleDepartments}
             highlightedPath={highlightedPath}
             pressureMarks={pressureMarks}
             dependencyEdges={showArrowsExplain ? topEdges : []}
@@ -281,15 +279,10 @@ export const SplashHud = ({ seed }: { seed: number }) => {
             showCrossRingTicks={showCrossRingTicks}
             focusNodeId={focusNodeId}
             targetIds={targetIds}
-            expandedNodeIds={focusResult.expandedNodeIds}
             visibleIds={visibility.visibleIds}
-            expandedMajorOrgIds={visibility.expandedMajorOrgIds}
             activeTab={panelTab}
             onlyAlerted={onlyAlerted}
             explodeAll={explodeAll}
-            showSalesToggle={isExpandableBranch && !explodeAll}
-            expandSalesDepartments={expandDepartments}
-            onToggleExpandSales={() => setExpandDepartments((prev) => !prev)}
             onSelectBranch={selectBranch}
             onSelectDivision={selectDivision}
             onSelectDepartment={selectDepartment}

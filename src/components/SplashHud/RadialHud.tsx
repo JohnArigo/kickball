@@ -1,7 +1,7 @@
 import './RadialHud.css'
 import { describeArc, midAngle, polarToCartesian } from './hudMath'
 import type { OrgData, OrgNode, Status } from '../../data/types'
-import type { HudNode, PressureMark } from '../../data/derivePressureMarks'
+import type { PressureMark } from '../../data/derivePressureMarks'
 import type { DirectedDependencyEdge } from '../../data/deriveFunctionEdges'
 
 export type HoverInfo = {
@@ -12,18 +12,14 @@ export type HoverInfo = {
 
 type RadialHudProps = {
   org: OrgData
-  nodes: HudNode[]
   treeNodes: import('../../data/hudModel').OrgNode[]
   focusNodeId: string
   targetIds: Set<string>
-  expandedNodeIds: Set<string>
   visibleIds: Set<string>
-  expandedMajorOrgIds: Set<string>
   activeTab: 'overview' | 'dependencies' | 'root'
   selectedBranchId: string
   selectedDivisionId: string
   selectedDepartmentId: string
-  visibleDepartmentIds?: string[]
   highlightedPath: string[]
   pressureMarks: PressureMark[]
   dependencyEdges: DirectedDependencyEdge[]
@@ -32,9 +28,6 @@ type RadialHudProps = {
   showCrossRingTicks: boolean
   onlyAlerted: boolean
   explodeAll: boolean
-  showSalesToggle: boolean
-  expandSalesDepartments: boolean
-  onToggleExpandSales: () => void
   onSelectBranch: (id: string) => void
   onSelectDivision: (id: string) => void
   onSelectDepartment: (id: string) => void
@@ -67,18 +60,14 @@ const shouldDim = (node: OrgNode, onlyAlerted: boolean, highlightedPath: string[
 
 export const RadialHud = ({
   org,
-  nodes,
   treeNodes,
   focusNodeId,
   targetIds,
-  expandedNodeIds,
   visibleIds,
-  expandedMajorOrgIds,
   activeTab,
   selectedBranchId,
   selectedDivisionId,
   selectedDepartmentId,
-  visibleDepartmentIds,
   highlightedPath,
   pressureMarks,
   dependencyEdges,
@@ -87,9 +76,6 @@ export const RadialHud = ({
   showCrossRingTicks,
   onlyAlerted,
   explodeAll,
-  showSalesToggle,
-  expandSalesDepartments,
-  onToggleExpandSales,
   onSelectBranch,
   onSelectDivision,
   onSelectDepartment,
@@ -107,10 +93,11 @@ export const RadialHud = ({
   const ring1Outer = ring2Inner - 10
   const ring1Inner = ring1Outer - 120
 
-  const ring0Nodes = treeNodes.filter((node) => node.level === 'branch')
-  const ring1Nodes = treeNodes.filter((node) => node.level === 'division')
-  const ring2Nodes = treeNodes.filter((node) => node.level === 'department')
-  const ring3Nodes = treeNodes.filter((node) => node.level === 'team')
+  const ring0Nodes = treeNodes.filter((node) => node.level === 'branch' && visibleIds.has(node.id))
+  const ring1Nodes = treeNodes.filter((node) => node.level === 'division' && visibleIds.has(node.id))
+  const ring2Nodes = treeNodes.filter((node) => node.level === 'department' && visibleIds.has(node.id))
+  const hasDivisions = ring1Nodes.length > 0
+  const hasDepartments = ring2Nodes.length > 0
 
   const divisionsByBranch = ring1Nodes.reduce<Record<string, import('../../data/hudModel').OrgNode[]>>((acc, node) => {
     if (!node.parentId) return acc
@@ -126,13 +113,6 @@ export const RadialHud = ({
     return acc
   }, {})
 
-  const teamsByDepartment = ring3Nodes.reduce<Record<string, import('../../data/hudModel').OrgNode[]>>((acc, node) => {
-    if (!node.parentId) return acc
-    if (!acc[node.parentId]) acc[node.parentId] = []
-    acc[node.parentId].push(node)
-    return acc
-  }, {})
-
   const branchAngle = 360 / ring0Nodes.length
   const branchWedges = ring0Nodes
     .sort((a, b) => a.sortIndex - b.sortIndex)
@@ -142,16 +122,7 @@ export const RadialHud = ({
       return { branchId: branch.id, startAngle, endAngle }
     })
 
-  const selectedBranch = nodesById[selectedBranchId]
-  const selectedDivision = nodesById[selectedDivisionId]
-
   const isVisible = (id: string) => visibleIds.has(id)
-
-  const divisionIds = (divisionsByBranch[selectedBranchId] ?? [])
-    .map((node) => node.id)
-    .filter((id) => isVisible(id))
-
-  const selectedBranchWedge = branchWedges.find((wedge) => wedge.branchId === selectedBranchId)
 
   const makeChildWedges = (
     startAngle: number,
@@ -172,25 +143,14 @@ export const RadialHud = ({
 
   const divisionWedgesByBranch = branchWedges.reduce<Record<string, { id: string; startAngle: number; endAngle: number }[]>>(
     (acc, branch) => {
-      const childIds = expandedMajorOrgIds.has(branch.branchId)
-        ? (divisionsByBranch[branch.branchId] ?? [])
-            .map((node) => node.id)
-            .filter((id) => isVisible(id))
-        : []
+      const childIds = (divisionsByBranch[branch.branchId] ?? [])
+        .map((node) => node.id)
+        .filter((id) => isVisible(id))
       acc[branch.branchId] = makeChildWedges(branch.startAngle, branch.endAngle, childIds, 0.6)
       return acc
     },
     {},
   )
-
-  const divisionWedges =
-    selectedBranchWedge && divisionIds.length > 0
-      ? makeChildWedges(selectedBranchWedge.startAngle, selectedBranchWedge.endAngle, divisionIds, 0.6).map(
-          (item) => ({ divisionId: item.id, startAngle: item.startAngle, endAngle: item.endAngle }),
-        )
-      : []
-
-  const selectedDivisionWedge = divisionWedges.find((wedge) => wedge.divisionId === selectedDivisionId)
 
   const departmentWedgesByDivision = Object.values(divisionWedgesByBranch).flat().reduce<
     Record<string, { id: string; startAngle: number; endAngle: number }[]>
@@ -204,11 +164,6 @@ export const RadialHud = ({
 
   // Team ring rendering is intentionally disabled for now.
 
-
-  const nodeById = nodes.reduce<Record<string, HudNode>>((acc, node) => {
-    acc[node.id] = node
-    return acc
-  }, {})
 
   const pressureByTarget = pressureMarks.reduce<Record<string, PressureMark>>((acc, mark) => {
     acc[mark.targetNodeId] = mark
@@ -247,29 +202,8 @@ export const RadialHud = ({
     }
   }).filter(Boolean) as { id: string; weight: number; d: string; dock: { x1: number; y1: number; x2: number; y2: number } }[]
 
-  const expandButtonPoint =
-    showSalesToggle && selectedDivisionWedge
-      ? polarToCartesian(center, center, ring3Outer + 28, midAngle(selectedDivisionWedge.startAngle, selectedDivisionWedge.endAngle))
-      : null
-
   return (
     <div className="radial-hud" aria-label="Org health radial">
-      {showSalesToggle ? (
-        <button
-          className="hud-expand-toggle"
-          onClick={onToggleExpandSales}
-          style={
-            expandButtonPoint
-              ? {
-                  left: `${(expandButtonPoint.x / size) * 100}%`,
-                  top: `${(expandButtonPoint.y / size) * 100}%`,
-                }
-              : undefined
-          }
-        >
-          {expandSalesDepartments ? 'Collapse Departments' : 'Expand Departments'}
-        </button>
-      ) : null}
       <svg viewBox={`0 0 ${size} ${size}`} role="img">
         <defs>
           <filter id="hudGlow" x="-50%" y="-50%" width="200%" height="200%">
@@ -299,7 +233,7 @@ export const RadialHud = ({
           </marker>
         </defs>
 
-        {explodeAll ? (
+        {explodeAll && hasDivisions ? (
           <g className="hud-branch-guides">
             {branchWedges.map(({ branchId, startAngle, endAngle }) => {
               const dividerStart = polarToCartesian(center, center, ring1Inner, startAngle)
@@ -323,8 +257,8 @@ export const RadialHud = ({
 
         <circle className="hud-grid" cx={center} cy={center} r={ring1Inner - 6} />
         <circle className="hud-grid" cx={center} cy={center} r={ring1Inner + 18} />
-        <circle className="hud-grid" cx={center} cy={center} r={ring2Outer + 10} />
-        <circle className="hud-grid" cx={center} cy={center} r={ring3Outer + 10} />
+        {hasDivisions ? <circle className="hud-grid" cx={center} cy={center} r={ring2Outer + 10} /> : null}
+        {hasDepartments ? <circle className="hud-grid" cx={center} cy={center} r={ring3Outer + 10} /> : null}
 
         {arrowPaths.length > 0 ? (
           <g className="hud-arrow-layer">
@@ -492,22 +426,24 @@ export const RadialHud = ({
 
         <circle className="hud-core" cx={center} cy={center} r={ring1Inner - 18} />
 
-        <g className="hud-ticks">
-          {Array.from({ length: 72 }).map((_, index) => {
-            const angle = (360 / 72) * index
-            const outer = polarToCartesian(center, center, ring3Outer + 12, angle)
-            const inner = polarToCartesian(center, center, ring3Outer + (index % 3 === 0 ? 2 : 6), angle)
-            return (
-              <line
-                key={`tick-${angle}`}
-                x1={inner.x}
-                y1={inner.y}
-                x2={outer.x}
-                y2={outer.y}
-              />
-            )
-          })}
-        </g>
+        {hasDepartments ? (
+          <g className="hud-ticks">
+            {Array.from({ length: 72 }).map((_, index) => {
+              const angle = (360 / 72) * index
+              const outer = polarToCartesian(center, center, ring3Outer + 12, angle)
+              const inner = polarToCartesian(center, center, ring3Outer + (index % 3 === 0 ? 2 : 6), angle)
+              return (
+                <line
+                  key={`tick-${angle}`}
+                  x1={inner.x}
+                  y1={inner.y}
+                  x2={outer.x}
+                  y2={outer.y}
+                />
+              )
+            })}
+          </g>
+        ) : null}
       </svg>
     </div>
   )

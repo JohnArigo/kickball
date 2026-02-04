@@ -1,92 +1,129 @@
-import type { DepEdge, NodeId, OrgNode } from './hudModel'
+import type { DepEdge, OrgNode } from './hudModel'
+import { CEL, FDD, LEVEL, MAX_REVEALS, RCL, levelIndex } from './constants'
 
-export type VisibilityPolicy = {
-  visibleIds: Set<NodeId>
-  expandedMajorOrgIds: Set<NodeId>
-  visibleLevel: number
-}
+export function deriveVisibilityPolicy(
+  activeTab: string,
+  focusStack: string[],
+  nodes: Map<string, OrgNode>,
+  branchIds: string[],
+  activeEdges: DepEdge[],
+  explodeAllEnabled: boolean,
+  rootId: string,
+): { visibleIds: Set<string> } {
+  const visibleIds = new Set<string>()
 
-const levelIndex = (level: OrgNode['level']) =>
-  level === 'company' ? 0 : level === 'branch' ? 1 : level === 'division' ? 2 : level === 'department' ? 3 : 4
+  visibleIds.add(rootId)
+  branchIds.forEach((id) => visibleIds.add(id))
 
-const buildAncestorChain = (nodeId: NodeId, nodeById: Record<string, OrgNode>) => {
-  const chain: NodeId[] = []
-  let current = nodeById[nodeId]
-  while (current) {
-    chain.push(current.id)
-    if (!current.parentId) break
-    current = nodeById[current.parentId]
-  }
-  return chain
-}
+  const isDependencies = activeTab === 'Dependencies'
 
-export const deriveVisibilityPolicy = (
-  activeTab: 'overview' | 'dependencies' | 'root',
-  focusStack: NodeId[],
-  nodes: OrgNode[],
-  edges: DepEdge[],
-  contextExplodeEnabled: boolean,
-  visibleLevel = 3,
-): VisibilityPolicy => {
-  const visibleIds = new Set<NodeId>()
-  const expandedMajorOrgIds = new Set<NodeId>()
-
-  const nodeById = nodes.reduce<Record<string, OrgNode>>((acc, node) => {
-    acc[node.id] = node
-    return acc
-  }, {})
-
-  const focusNodeId = focusStack.at(-1)
-  const focusNode = focusNodeId ? nodeById[focusNodeId] : undefined
-
-  if (activeTab === 'dependencies' && contextExplodeEnabled) {
-    nodes
-      .filter((node) => levelIndex(node.level) <= visibleLevel)
-      .forEach((node) => visibleIds.add(node.id))
-
-    if (focusNode) {
-      const focusChain = buildAncestorChain(focusNode.id, nodeById)
-      focusChain.forEach((id) => visibleIds.add(id))
-      if (levelIndex(focusNode.level) >= visibleLevel) {
-        focusNode.childrenIds.forEach((childId) => visibleIds.add(childId))
-      }
-    }
+  if (explodeAllEnabled && isDependencies) {
+    applyContextExplodeRules(nodes, visibleIds)
   } else {
-    if (focusNode) {
-      const focusChain = buildAncestorChain(focusNode.id, nodeById)
-      focusChain.forEach((id) => visibleIds.add(id))
-      focusNode.childrenIds.forEach((childId) => visibleIds.add(childId))
-    }
+    applyFocusModeRules(focusStack, nodes, activeEdges, isDependencies, visibleIds)
   }
 
-  edges
-    .filter((edge) => edge.fromId === focusNodeId && edge.weight > 0)
-    .forEach((edge) => {
-      const landing = edge.toPath && edge.toPath.length > 0 ? edge.toPath[edge.toPath.length - 1] : edge.toId
-      const chain = buildAncestorChain(landing, nodeById)
-      chain.forEach((id) => {
-        const node = nodeById[id]
-        if (!node) return
-        if (levelIndex(node.level) <= visibleLevel) {
-          visibleIds.add(id)
-        }
-      })
-    })
+  applyFocusDrillDepth(focusStack, nodes, visibleIds)
 
-  nodes
-    .filter((node) => node.level === 'branch')
-    .forEach((node) => {
-      visibleIds.add(node.id)
-      if (visibleIds.has(node.id)) {
-        expandedMajorOrgIds.add(node.id)
-      }
-    })
+  return { visibleIds }
+}
 
-  nodes.forEach((node) => {
-    if (visibleIds.has(node.id)) {
-      expandedMajorOrgIds.add(node.majorOrgId)
+function applyFocusModeRules(
+  focusStack: string[],
+  nodes: Map<string, OrgNode>,
+  activeEdges: DepEdge[],
+  isDependencies: boolean,
+  visibleIds: Set<string>,
+) {
+  if (!focusStack.length) return
+
+  const activeFocusId = focusStack.at(-1)
+  if (!activeFocusId) return
+  const focusNode = nodes.get(activeFocusId)
+  if (!focusNode) return
+
+  let current: OrgNode | undefined = focusNode
+  while (current) {
+    visibleIds.add(current.id)
+    current = current.parentId ? nodes.get(current.parentId) : undefined
+  }
+
+  const parent = focusNode.parentId ? nodes.get(focusNode.parentId) : null
+  if (parent) {
+    parent.childrenIds.forEach((id) => visibleIds.add(id))
+  }
+
+  if (!isDependencies) return
+
+  const focusBranchId = getMajorOrgId(focusNode, nodes)
+  const sortedEdges = [...activeEdges]
+    .map((edge) => ({ edge, weight: edge.weight ?? 5 }))
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, MAX_REVEALS)
+
+  for (const { edge } of sortedEdges) {
+    const landing = resolveLandingNode(edge, nodes)
+    if (!landing) continue
+
+    const targetBranchId = getMajorOrgId(landing, nodes)
+    if (targetBranchId === focusBranchId) continue
+
+    const revealNode = getRevealTarget(landing, nodes)
+    visibleIds.add(revealNode.id)
+
+    let ancestor: OrgNode | undefined = revealNode
+    while (ancestor && levelIndex(ancestor.level) > LEVEL.MAJOR_ORG) {
+      visibleIds.add(ancestor.id)
+      ancestor = ancestor.parentId ? nodes.get(ancestor.parentId) : undefined
     }
-  })
+  }
+}
 
-  return { visibleIds, expandedMajorOrgIds, visibleLevel }
+function applyFocusDrillDepth(
+  focusStack: string[],
+  nodes: Map<string, OrgNode>,
+  visibleIds: Set<string>,
+) {
+  if (!focusStack.length) return
+
+  const focusNode = nodes.get(focusStack.at(-1) ?? '')
+  if (!focusNode) return
+
+  for (const childId of focusNode.childrenIds) {
+    const child = nodes.get(childId)
+    if (child && levelIndex(child.level) === levelIndex(focusNode.level) + FDD) {
+      visibleIds.add(childId)
+    }
+  }
+}
+
+function applyContextExplodeRules(nodes: Map<string, OrgNode>, visibleIds: Set<string>) {
+  for (const node of nodes.values()) {
+    if (levelIndex(node.level) <= CEL) visibleIds.add(node.id)
+  }
+}
+
+function getMajorOrgId(node: OrgNode, nodes: Map<string, OrgNode>) {
+  let current: OrgNode | undefined = node
+  while (current && levelIndex(current.level) > LEVEL.MAJOR_ORG) {
+    current = current.parentId ? nodes.get(current.parentId) : undefined
+  }
+  return current?.id ?? node.id
+}
+
+function resolveLandingNode(edge: DepEdge, nodes: Map<string, OrgNode>) {
+  if (edge.toPath?.length) {
+    const landingId = edge.toPath.at(-1)
+    return landingId ? nodes.get(landingId) ?? null : null
+  }
+  return nodes.get(edge.toId) ?? null
+}
+
+function getRevealTarget(landing: OrgNode, nodes: Map<string, OrgNode>) {
+  if (levelIndex(landing.level) <= RCL) return landing
+  let current: OrgNode | undefined = landing
+  while (current && levelIndex(current.level) > RCL) {
+    current = current.parentId ? nodes.get(current.parentId) : undefined
+  }
+  return current ?? landing
 }

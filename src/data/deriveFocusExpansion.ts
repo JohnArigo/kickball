@@ -1,4 +1,5 @@
 import type { DepEdge, NodeId, OrgNode } from './hudModel'
+import { RCL, levelIndex } from './constants'
 
 export type FocusTargetsResult = {
   targets: { id: NodeId; weight: number; ring: number; intensity01: number; landingPath?: string[] }[]
@@ -8,8 +9,6 @@ export type FocusTargetsResult = {
 }
 
 const easeOut = (t: number) => Math.pow(t, 0.7)
-const levelIndex = (level: OrgNode['level']) =>
-  level === 'company' ? 0 : level === 'branch' ? 1 : level === 'division' ? 2 : level === 'department' ? 3 : 4
 const buildAncestorChain = (nodeId: NodeId, nodeById: Record<string, OrgNode>) => {
   const chain: NodeId[] = []
   let current = nodeById[nodeId]
@@ -25,7 +24,7 @@ export const computeFocusTargetsAndExpansion = (
   focusNodeId: NodeId | null,
   nodes: OrgNode[],
   edges: DepEdge[],
-  visibleLevel = 3,
+  visibleLevel = RCL,
 ): FocusTargetsResult => {
   const expandedNodeIds = new Set<NodeId>()
   if (!focusNodeId) {
