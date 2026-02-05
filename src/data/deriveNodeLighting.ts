@@ -9,25 +9,25 @@ const LIGHTING_CONFIG: Record<LightingState, Omit<NodeLighting, 'state'>> = {
     glowColor: null,
     glowIntensity: 0,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: 'var(--border-default)',
   },
   selected: {
     opacity: 1,
     brightness: 1.1,
     saturation: 1,
-    glowColor: '#10b981',
+    glowColor: 'var(--accent-selection-glow)',
     glowIntensity: 12,
     borderWidth: 2.5,
-    borderColor: '#10b981',
+    borderColor: 'var(--accent-selection)',
   },
   child: {
     opacity: 0.95,
     brightness: 1.05,
     saturation: 1,
-    glowColor: '#8b5cf6',
+    glowColor: 'var(--accent-children-glow)',
     glowIntensity: 6,
     borderWidth: 2,
-    borderColor: '#8b5cf6',
+    borderColor: 'var(--accent-children)',
   },
   grandchild: {
     opacity: 0.85,
@@ -36,7 +36,7 @@ const LIGHTING_CONFIG: Record<LightingState, Omit<NodeLighting, 'state'>> = {
     glowColor: null,
     glowIntensity: 0,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'var(--border-subtle)',
   },
   parent: {
     opacity: 0.85,
@@ -45,7 +45,7 @@ const LIGHTING_CONFIG: Record<LightingState, Omit<NodeLighting, 'state'>> = {
     glowColor: null,
     glowIntensity: 0,
     borderWidth: 2,
-    borderColor: '#6366f1',
+    borderColor: 'var(--accent-lineage)',
   },
   ancestor: {
     opacity: 0.75,
@@ -54,7 +54,7 @@ const LIGHTING_CONFIG: Record<LightingState, Omit<NodeLighting, 'state'>> = {
     glowColor: null,
     glowIntensity: 0,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'var(--border-subtle)',
   },
   sibling: {
     opacity: 0.45,
@@ -63,7 +63,7 @@ const LIGHTING_CONFIG: Record<LightingState, Omit<NodeLighting, 'state'>> = {
     glowColor: null,
     glowIntensity: 0,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderColor: 'var(--border-subtle)',
   },
   dimmed: {
     opacity: 0.35,
@@ -72,7 +72,7 @@ const LIGHTING_CONFIG: Record<LightingState, Omit<NodeLighting, 'state'>> = {
     glowColor: null,
     glowIntensity: 0,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'var(--border-subtle)',
   },
 }
 

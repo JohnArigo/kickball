@@ -17,17 +17,8 @@ export const LineagePath = ({ points }: LineagePathProps) => {
 
   return (
     <g className="hud-lineage">
-      <path className="hud-lineage-glow" d={d} fill="none" />
+      <path className="hud-lineage-line hud-lineage-outline" d={d} fill="none" />
       <path className="hud-lineage-line" d={d} fill="none" />
-      {points.map((point, index) => (
-        <circle
-          key={point.id}
-          className={index === points.length - 1 ? 'hud-lineage-node is-active' : 'hud-lineage-node'}
-          cx={point.x}
-          cy={point.y}
-          r={index === points.length - 1 ? 5 : 4}
-        />
-      ))}
     </g>
   )
 }

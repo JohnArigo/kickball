@@ -3,23 +3,23 @@
   top: 16px;
   right: 16px;
   width: 140px;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--bg-elevated);
   border-radius: 12px;
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-default);
   overflow: hidden;
   z-index: 6;
 }
 
 .mini-map-header {
   padding: 8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .mini-map-title {
   font-size: 11px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -48,18 +48,18 @@
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(16, 185, 129, 0.1);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--accent-primary-dim);
 }
 
 .location-dot {
-  color: #10b981;
+  color: var(--interaction-stroke);
   font-size: 8px;
 }
 
 .location-name {
   font-size: 11px;
-  color: #fff;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -109,7 +109,7 @@ const MiniMapRadial = ({ nodes, zoomPath, anchorId, onNodeClick }: MiniMapRadial
         cy={centerY}
         r={ringRadii[1] + 10}
         fill="none"
-        stroke="rgba(255,255,255,0.1)"
+        stroke="var(--border-subtle)"
         strokeWidth={20}
       />
       <circle
@@ -117,7 +117,7 @@ const MiniMapRadial = ({ nodes, zoomPath, anchorId, onNodeClick }: MiniMapRadial
         cy={centerY}
         r={ringRadii[2] + 8}
         fill="none"
-        stroke="rgba(255,255,255,0.05)"
+        stroke="var(--border-subtle)"
         strokeWidth={16}
       />
       {root ? (
@@ -126,7 +126,7 @@ const MiniMapRadial = ({ nodes, zoomPath, anchorId, onNodeClick }: MiniMapRadial
           cy={centerY}
           r={8}
           fill={getStatusColor(root.status)}
-          stroke={anchorId === root.id ? '#10b981' : 'transparent'}
+          stroke={anchorId === root.id ? 'var(--interaction-stroke)' : 'transparent'}
           strokeWidth={2}
           className="mini-node clickable"
           onClick={() => onNodeClick(root.id)}
@@ -145,7 +145,9 @@ const MiniMapRadial = ({ nodes, zoomPath, anchorId, onNodeClick }: MiniMapRadial
               cy={y}
               r={6}
               fill={getStatusColor(branch.status)}
-              stroke={isCurrent ? '#10b981' : isInPath ? '#8b5cf6' : 'transparent'}
+              stroke={
+                isCurrent ? 'var(--interaction-stroke)' : isInPath ? 'var(--interaction-stroke-soft)' : 'transparent'
+              }
               strokeWidth={2}
               className="mini-node clickable"
               onClick={() => onNodeClick(branch.id)}
@@ -165,7 +167,9 @@ const MiniMapRadial = ({ nodes, zoomPath, anchorId, onNodeClick }: MiniMapRadial
                   cy={dy}
                   r={4}
                   fill={getStatusColor(div.status)}
-                  stroke={divIsCurrent ? '#10b981' : divInPath ? '#8b5cf6' : 'transparent'}
+                  stroke={
+                    divIsCurrent ? 'var(--interaction-stroke)' : divInPath ? 'var(--interaction-stroke-soft)' : 'transparent'
+                  }
                   strokeWidth={1.5}
                   className="mini-node clickable"
                   onClick={() => onNodeClick(div.id)}
@@ -180,7 +184,7 @@ const MiniMapRadial = ({ nodes, zoomPath, anchorId, onNodeClick }: MiniMapRadial
 }
 
 const getStatusColor = (status: OrgNode['status']) => {
-  if (status === 'green') return '#22c55e'
-  if (status === 'yellow') return '#eab308'
-  return '#ef4444'
+  if (status === 'green') return 'var(--status-green)'
+  if (status === 'yellow') return 'var(--status-amber)'
+  return 'var(--status-red)'
 }

@@ -11,7 +11,8 @@ import { derivePressureMarks, type HudNode, type PressureMark } from '../../data
 import type { OrgNode as HudOrgNode, DepEdge } from '../../data/hudModel'
 import { buildMockCrossLevelDeps } from '../../data/mockCrossLevelDeps'
 import { deriveZoomedVisibility } from '../../data/deriveZoomedVisibility'
-import { deriveAllNodeLighting } from '../../data/deriveNodeLighting'
+import { deriveWedgeStates } from '../../data/deriveWedgeStates'
+import { deriveRingStates } from '../../data/deriveRingStates'
 import { useZoom } from '../../hooks/useZoom'
 import { ZoomBreadcrumb } from './ZoomBreadcrumb'
 import { ZoomControls } from './ZoomControls'
@@ -86,9 +87,16 @@ export const SplashHud = ({ seed }: { seed: number }) => {
     [zoomState, orgNodeMap, selectedNodeId],
   )
 
-  const nodeLighting = useMemo(
-    () => deriveAllNodeLighting(visibleIds, selectedNodeId, orgNodeMap),
-    [visibleIds, selectedNodeId, orgNodeMap],
+  const hoveredNodeId = hoverInfo?.nodeId ?? null
+
+  const wedgeStates = useMemo(
+    () => deriveWedgeStates(visibleIds, selectedNodeId, hoveredNodeId, orgNodeMap),
+    [visibleIds, selectedNodeId, hoveredNodeId, orgNodeMap],
+  )
+
+  const ringStates = useMemo(
+    () => deriveRingStates(selectedNodeId, ringAssignments),
+    [ringAssignments, selectedNodeId],
   )
 
   const dependencies: DependencyInfo[] = useMemo(() => {
@@ -217,7 +225,7 @@ export const SplashHud = ({ seed }: { seed: number }) => {
   }, [canZoomIn, canZoomOut, handleResetZoom, handleZoomIn, handleZoomOut])
 
   return (
-    <div className={`splash-hud ${pressureMode ? 'is-pressure' : ''}`}>
+    <div className={`splash-hud ${pressureMode ? 'is-pressure' : ''} ${selectedNodeId ? 'has-selection' : ''}`}>
       <div className="splash-hud__main">
         <div className="hud-top-bar">
           <ZoomBreadcrumb
@@ -243,7 +251,8 @@ export const SplashHud = ({ seed }: { seed: number }) => {
             zoomState={zoomState}
             selectedNodeId={selectedNodeId}
             lineagePath={lineagePath}
-            nodeLighting={nodeLighting}
+            wedgeStates={wedgeStates}
+            ringStates={ringStates}
             pressureMarks={pressureMarks}
             dependencyEdges={dependencyEdges}
             pressureMode={pressureMode}

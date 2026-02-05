@@ -31,4 +31,21 @@ export const describeArc = (
   ].join(' ')
 }
 
+export const describeArcStroke = (
+  cx: number,
+  cy: number,
+  r: number,
+  startAngle: number,
+  endAngle: number,
+) => {
+  const start = polarToCartesian(cx, cy, r, endAngle)
+  const end = polarToCartesian(cx, cy, r, startAngle)
+  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1'
+
+  return [
+    `M ${start.x} ${start.y}`,
+    `A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`,
+  ].join(' ')
+}
+
 export const midAngle = (startAngle: number, endAngle: number) => (startAngle + endAngle) / 2

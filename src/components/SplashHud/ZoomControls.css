@@ -3,7 +3,8 @@
   align-items: center;
   gap: 4px;
   padding: 4px;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   backdrop-filter: blur(8px);
 }
@@ -14,10 +15,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  color: #fff;
+  color: var(--text-primary);
   font-size: 18px;
   font-weight: 600;
   cursor: pointer;
@@ -25,8 +26,8 @@
 }
 
 .zoom-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--bg-active);
+  border-color: var(--border-default);
 }
 
 .zoom-btn:disabled {
@@ -37,8 +38,8 @@
 .zoom-level {
   padding: 0 8px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }
 
 .zoom-reset {

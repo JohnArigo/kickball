@@ -1,0 +1,286 @@
+:root {
+  /* ===================================================
+     NIGHT OPERATIONS PALETTE
+     Premium • Tactical • Military • Commanding
+     =================================================== */
+
+  /* ─────────────────────────────────────────────────────
+     BACKGROUNDS
+     Deep navy-blacks, not pure black (more premium)
+     ───────────────────────────────────────────────────── */
+  --bg-base: #0c1117;
+  --bg-surface: #151c25;
+  --bg-elevated: #1e2833;
+  --bg-hover: #252f3b;
+  --bg-active: #2d3844;
+  --bg-ring: #0f1419;
+  --bg-input: #111820;
+
+  /* ─────────────────────────────────────────────────────
+     BORDERS & DIVIDERS
+     Subtle structure, not prominent
+     ───────────────────────────────────────────────────── */
+  --border-subtle: #1e2833;
+  --border-default: #2d3a47;
+  --border-strong: #3d4a57;
+  --border-focus: #0097b2;
+
+  /* ─────────────────────────────────────────────────────
+     TEXT
+     Cool whites and tactical grays
+     ───────────────────────────────────────────────────── */
+  --text-primary: #e8eef4;
+  --text-secondary: #8899a8;
+  --text-muted: #5a6570;
+  --text-sleep: #3d4a55;
+  --text-inverse: #0c1117;
+
+  /* ─────────────────────────────────────────────────────
+     WEDGE FILLS - The Sleep/Wake/Alarm States
+     These replace solid status colors as fills
+     ───────────────────────────────────────────────────── */
+  --wedge-fill-base: #1b242d;
+  --wedge-fill-base-hover: #202a33;
+  --wedge-fill-base-strong: #27323c;
+
+  --wedge-fill-opacity-base: 0.85;
+  --wedge-fill-opacity-hover: calc(var(--wedge-fill-opacity-base) + var(--hover-boost));
+  --wedge-fill-opacity-selected: calc(var(--wedge-fill-opacity-base) + var(--selected-boost));
+  --wedge-fill-opacity-suppressed: calc(var(--wedge-fill-opacity-base) * var(--suppressed-fill-multiplier));
+
+  --status-tint-base: 0.4;
+  --status-tint-hover: calc(var(--status-tint-base) + var(--hover-boost));
+  --status-tint-selected: calc(var(--status-tint-base) + var(--selected-boost));
+  --status-tint-suppressed: calc(var(--status-tint-base) * var(--suppressed-fill-multiplier));
+
+  --skeleton-stroke: rgba(148, 163, 184, 0.24);
+  --skeleton-stroke-strong: rgba(148, 163, 184, 0.32);
+
+  --suppressed-fill-multiplier: 0.82;
+  --hover-boost: 0.08;
+  --selected-boost: 0.2;
+
+  --wedge-fill-sleep: var(--wedge-fill-base);
+  --wedge-fill-sleep-hover: var(--wedge-fill-base-hover);
+
+  --wedge-fill-wake: var(--wedge-fill-base-hover);
+  --wedge-fill-wake-hover: var(--wedge-fill-base-strong);
+
+  /* ─────────────────────────────────────────────────────
+     STATUS COLORS - For SIGNALS, not FILLS
+     Used as: edges, arcs, dots, thin indicators
+     ───────────────────────────────────────────────────── */
+
+  --signal-green: #00c896;
+  --signal-green-muted: #00c89673;
+  --signal-green-medium: #00c89699;
+  --signal-green-alarm-fill: #00c89640;
+
+  --signal-amber: #c99a20;
+  --signal-amber-muted: #c99a2073;
+  --signal-amber-medium: #c99a2099;
+  --signal-amber-alarm-fill: #c99a2040;
+
+  --signal-red: #e04050;
+  --signal-red-muted: #e0405073;
+  --signal-red-medium: #e0405099;
+  --signal-red-alarm-fill: #e0405040;
+
+  --status-unknown: #5c6775;
+  --status-unknown-dim: #5c677540;
+
+  /* ─────────────────────────────────────────────────────
+     INTERACTION COLORS - Only on active interaction
+     Cyan NEVER appears alongside full status colors
+     ───────────────────────────────────────────────────── */
+
+  --interact-select: #00d4ff;
+  --interact-select-muted: #00d4ff30;
+  --interact-select-glow: #00d4ff50;
+
+  --interact-hover: #ffffff15;
+
+  --interact-focus: #0097b2;
+
+  --interaction-stroke: rgba(255, 255, 255, 0.7);
+  --interaction-stroke-soft: rgba(255, 255, 255, 0.35);
+  --interaction-glow: rgba(255, 255, 255, 0.2);
+  --interaction-glow-strong: rgba(255, 255, 255, 0.3);
+
+  --child-glow-strong: rgba(255, 255, 255, 0.3);
+  --child-glow-soft: rgba(255, 255, 255, 0.18);
+  --child-glow-blur: 14px;
+  --child-glow-blur-max: 16px;
+  --child-brightness-boost: 1.18;
+
+  --wedge-label-color: rgba(255, 255, 255, 0.85);
+  --wedge-label-color-muted: rgba(255, 255, 255, 0.65);
+
+  --accent-lineage: #6577f3;
+  --accent-lineage-dim: #6577f325;
+  --accent-lineage-glow: #6577f350;
+
+  /* ─────────────────────────────────────────────────────
+     EDGE/ARC THICKNESS
+     Status shown as thin edges, not solid fills
+     ───────────────────────────────────────────────────── */
+  --edge-sleep: 1px;
+  --edge-wake: 2px;
+  --edge-alarm: 3px;
+
+  /* ─────────────────────────────────────────────────────
+     BRIGHTNESS/OPACITY DISCIPLINE
+     ───────────────────────────────────────────────────── */
+  --brightness-sleep: 0.7;
+  --saturation-sleep: 0.3;
+  --opacity-sleep: 0.6;
+
+  --brightness-wake: 0.9;
+  --saturation-wake: 0.6;
+  --opacity-wake: 0.85;
+
+  --brightness-alarm: 1;
+  --saturation-alarm: 1;
+  --opacity-alarm: 1;
+
+  --brightness-suppressed: 0.5;
+  --saturation-suppressed: 0.2;
+  --opacity-suppressed: 0.4;
+
+  /* ─────────────────────────────────────────────────────
+     Compatibility aliases for existing components
+     ───────────────────────────────────────────────────── */
+  --status-green: var(--signal-green);
+  --status-green-dim: var(--signal-green-alarm-fill);
+  --status-green-glow: var(--signal-green-medium);
+
+  --status-amber: var(--signal-amber);
+  --status-amber-dim: var(--signal-amber-alarm-fill);
+  --status-amber-glow: var(--signal-amber-medium);
+
+  --status-red: var(--signal-red);
+  --status-red-dim: var(--signal-red-alarm-fill);
+  --status-red-glow: var(--signal-red-medium);
+
+  --accent-primary: var(--interact-focus);
+  --accent-primary-hover: #00a8c6;
+  --accent-primary-dim: #0097b230;
+
+  --accent-selection: var(--interact-select);
+  --accent-selection-dim: var(--interact-select-muted);
+  --accent-selection-glow: var(--interact-select-glow);
+
+  --accent-children: var(--signal-green);
+  --accent-children-dim: var(--signal-green-muted);
+  --accent-children-glow: var(--signal-green-medium);
+
+  --accent-pressure: var(--interact-select);
+  --accent-pressure-dim: var(--interact-select-muted);
+  --accent-pressure-glow: var(--interact-select-glow);
+
+  /* ─────────────────────────────────────────────────────
+     PREMIUM ACCENTS
+     Gold for authority, rank, premium features
+     ───────────────────────────────────────────────────── */
+  --gold: #c9a227;
+  --gold-bright: #f5d547;
+  --gold-dim: #c9a22730;
+
+  /* ─────────────────────────────────────────────────────
+     SPOTLIGHT/DIM SYSTEM
+     Opacity and filter values for node lighting
+     ───────────────────────────────────────────────────── */
+
+  --lighting-default-opacity: 0.7;
+  --lighting-default-brightness: 1.0;
+  --lighting-default-saturation: 0.9;
+
+  --lighting-selected-opacity: 1.0;
+  --lighting-selected-brightness: 1.1;
+  --lighting-selected-saturation: 1.0;
+
+  --lighting-child-opacity: 0.95;
+  --lighting-child-brightness: 1.05;
+  --lighting-child-saturation: 1.0;
+
+  --lighting-lineage-opacity: 0.85;
+  --lighting-lineage-brightness: 1.0;
+  --lighting-lineage-saturation: 0.95;
+
+  --lighting-sibling-opacity: 0.45;
+  --lighting-sibling-brightness: 0.9;
+  --lighting-sibling-saturation: 0.7;
+
+  --lighting-dimmed-opacity: 0.35;
+  --lighting-dimmed-brightness: 0.85;
+  --lighting-dimmed-saturation: 0.6;
+
+  /* ─────────────────────────────────────────────────────
+     TYPOGRAPHY
+     Clean, military precision
+     ───────────────────────────────────────────────────── */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --text-xs: 10px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 28px;
+  --text-3xl: 48px;
+  --text-4xl: 64px;
+
+  /* ─────────────────────────────────────────────────────
+     SPACING
+     Consistent spacing scale
+     ───────────────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ─────────────────────────────────────────────────────
+     BORDERS & RADIUS
+     ───────────────────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* ─────────────────────────────────────────────────────
+     SHADOWS & GLOWS
+     Subtle depth, tactical glows
+     ───────────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  --glow-selection: 0 0 12px var(--accent-selection-glow);
+  --glow-children: 0 0 8px var(--accent-children-glow);
+  --glow-lineage: 0 0 6px var(--accent-lineage-glow);
+  --glow-pressure: 0 0 10px var(--accent-pressure-glow);
+
+  --glow-green: 0 0 8px var(--status-green-glow);
+  --glow-amber: 0 0 8px var(--status-amber-glow);
+  --glow-red: 0 0 8px var(--status-red-glow);
+
+  /* ─────────────────────────────────────────────────────
+     TRANSITIONS
+     Smooth, professional animations
+     ───────────────────────────────────────────────────── */
+  --transition-fast: 0.1s ease;
+  --transition-base: 0.2s ease;
+  --transition-slow: 0.3s ease;
+}
