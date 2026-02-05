@@ -20,28 +20,13 @@
   cursor: pointer;
   stroke: rgba(3, 7, 18, 0.6);
   stroke-width: 1;
-  transition: opacity 0.2s ease;
-}
-
-.hud-wedge.is-selected {
-  stroke: rgba(255, 255, 255, 0.9);
-  stroke-width: 1.5;
-  filter: url(#hudGlow);
+  transition: opacity 0.2s ease, filter 0.2s ease, stroke-width 0.2s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hud-branch-group {
+  .hud-ring-group {
     transition: none !important;
   }
-}
-
-.hud-wedge.is-highlight {
-  stroke: rgba(255, 255, 255, 0.7);
-  stroke-width: 2;
-}
-
-.hud-wedge.is-dim {
-  opacity: 0.35;
 }
 
 .hud-wedge--inner,
@@ -65,38 +50,6 @@
 
 .status-red {
   fill: #7a2e38;
-}
-
-.hud-branch-group[data-visual="nonTarget"] .hud-wedge {
-  filter: brightness(0.55) saturate(0.55);
-}
-
-.hud-branch-group[data-visual="nonTarget"] .hud-branch-label {
-  opacity: 0.82;
-}
-
-.hud-branch-group[data-visual="target"] .hud-wedge {
-  filter: none;
-}
-
-.hud-branch-group[data-visual="focus"] .hud-wedge {
-  filter: brightness(1.08) saturate(1.05);
-}
-
-.hud-branch-group[data-visual="focus"] .hud-branch-label {
-  opacity: 1;
-}
-
-.hud-wedge[data-visual="nonTarget"] {
-  filter: brightness(0.55) saturate(0.55);
-}
-
-.hud-wedge[data-visual="target"] {
-  filter: none;
-}
-
-.hud-wedge[data-visual="focus"] {
-  filter: brightness(1.08) saturate(1.05);
 }
 
 .focusRing {
@@ -143,6 +96,32 @@
   stroke: rgba(191, 214, 255, 0.75);
 }
 
+.hud-lineage {
+  pointer-events: none;
+}
+
+.hud-lineage-glow {
+  stroke: rgba(139, 92, 246, 0.4);
+  stroke-width: 8;
+  filter: blur(3px);
+}
+
+.hud-lineage-line {
+  stroke: rgba(139, 92, 246, 0.9);
+  stroke-width: 3;
+  stroke-dasharray: 6 4;
+}
+
+.hud-lineage-node {
+  fill: rgba(139, 92, 246, 0.7);
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 1;
+}
+
+.hud-lineage-node.is-active {
+  fill: rgba(139, 92, 246, 0.95);
+}
+
 .splash-hud.is-pressure .hud-arrow,
 .splash-hud.is-pressure .hud-arrow-cap {
   opacity: 0.65;
@@ -180,6 +159,38 @@
   pointer-events: none;
 }
 
+.hud-node[data-lighting="default"] .hud-branch-label {
+  opacity: 0.75;
+}
+
+.hud-node[data-lighting="selected"] .hud-branch-label {
+  opacity: 1;
+}
+
+.hud-node[data-lighting="child"] .hud-branch-label {
+  opacity: 0.95;
+}
+
+.hud-node[data-lighting="grandchild"] .hud-branch-label {
+  opacity: 0.85;
+}
+
+.hud-node[data-lighting="parent"] .hud-branch-label {
+  opacity: 0.9;
+}
+
+.hud-node[data-lighting="ancestor"] .hud-branch-label {
+  opacity: 0.75;
+}
+
+.hud-node[data-lighting="sibling"] .hud-branch-label {
+  opacity: 0.6;
+}
+
+.hud-node[data-lighting="dimmed"] .hud-branch-label {
+  opacity: 0.45;
+}
+
 .hud-expand-toggle {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -194,16 +205,8 @@
   cursor: pointer;
 }
 
-.hud-branch-label.is-dim {
-  opacity: 0.4;
-}
-
 @media (min-width: 2560px) {
   .radial-hud {
     max-width: 980px;
   }
-}
-.hud-wedge.is-target {
-  stroke: rgba(255, 255, 255, 0.8);
-  stroke-width: 2;
 }

@@ -1,0 +1,66 @@
+.mini-map {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 140px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  z-index: 6;
+}
+
+.mini-map-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mini-map-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mini-map-svg {
+  width: 100%;
+  height: 120px;
+  display: block;
+}
+
+.mini-node {
+  transition: all 0.15s ease;
+}
+
+.mini-node.clickable {
+  cursor: pointer;
+}
+
+.mini-node.clickable:hover {
+  filter: brightness(1.2);
+  transform: scale(1.2);
+}
+
+.mini-map-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.location-dot {
+  color: #10b981;
+  font-size: 8px;
+}
+
+.location-name {
+  font-size: 11px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

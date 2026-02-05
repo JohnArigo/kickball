@@ -28,6 +28,18 @@
   height: fit-content;
 }
 
+.hud-top-bar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 170px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  z-index: 10;
+}
+
 .splash-hud__side {
   height: 100%;
   min-height: 0;
